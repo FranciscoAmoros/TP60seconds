@@ -1,6 +1,10 @@
 
+
 estado_juego = {}
 
-def start_game(estado):
+def main(estado):
     global estado_juego
     estado_juego = estado
+
+
+    return estado_juego
