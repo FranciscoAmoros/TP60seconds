@@ -45,7 +45,7 @@ def load_game(indice_partida):
         estado_juego = estado_juego_inicial.copy()
         with open(partida_root, "w") as archivo:
             json.dump(estado_juego, archivo, indent=4)
-        game.start_game(estado_juego)
+        juego = game.start_game(estado_juego)
             
 
 running = True
