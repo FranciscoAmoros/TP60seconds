@@ -3,9 +3,10 @@ from time import sleep
 import json
 import game
 
-def limpiar_pantalla():
-    os.system("cls" if os.name == 'nt' else 'clear')
-    sleep(1)
+pygame.init()
+screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+clock = pygame.time.Clock()
+
 
 ruta_actual = os.path.dirname(__file__)
 ruta_saves = os.path.join(ruta_actual, "saves")
