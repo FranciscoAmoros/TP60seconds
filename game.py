@@ -12,7 +12,10 @@ def start_game(estado, screen):
         etapa_recoleccion = False
 
     if etapa_recoleccion:
-        estado_juego = dayone_game.main(estado_juego, screen)
+        estado_juego, back_to_menu = dayone_game.main(estado_juego, screen)
+        if not back_to_menu:
+            estado_juego = seconds_game.main(estado_juego, screen)
+        estado_juego["dia"] = 1
     else:
         estado_juego = seconds_game.main(estado_juego, screen)
 
