@@ -4,7 +4,7 @@ import seconds_game
 estado_juego = {}
 etapa_recoleccion = True
 
-def start_game(estado):
+def start_game(estado, screen):
     global estado_juego, etapa_recoleccion
     estado_juego = estado
 
@@ -12,7 +12,9 @@ def start_game(estado):
         etapa_recoleccion = False
 
     if etapa_recoleccion:
-        estado_juego = dayone_game.main(estado_juego)
+        estado_juego = dayone_game.main(estado_juego, screen)
     else:
-        estado_juego = seconds_game.main(estado_juego)
+        estado_juego = seconds_game.main(estado_juego, screen)
+
+    return estado_juego
     
