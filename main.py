@@ -10,8 +10,17 @@ ruta_actual = os.path.dirname(__file__)
 
 settings_default = {
     "display_mode": "windowed",
-    "resolution": "1080x720"
+    "resolution_index": 2
 }
+
+resolutions_available = [
+    (800, 600),
+    (1024, 768),
+    (1280, 720),
+    (1600, 900),
+    (1920, 1080)
+]
+
 
 settings = {}
 ruta_settings = os.path.join(ruta_actual, "settings")
@@ -35,13 +44,20 @@ def load_settings():
 def update_config():
     global screen, screen_width, screen_high
     global settings
+
+    try:
+        resolution = resolutions_available[settings["resolution_index"]]
+    except (IndexError, KeyError):
+        resolution = resolutions_available[0]
+        settings["resolution_index"] = 0
+
     if settings["display_mode"] == "fullscreen":
         screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-        screen.fill((50, 200, 255))
     else:
-        screen = pygame.display.set_mode((1152, 864))
+        screen = pygame.display.set_mode(resolution)
 
     screen_width, screen_high = screen.get_size()
+
 
 def save_settings():
     global settings
@@ -50,13 +66,21 @@ def save_settings():
 
 def modify_settings(indice):
     global settings
+
     if indice == 1:
         settings["display_mode"] = (
             "fullscreen" if settings["display_mode"] == "windowed" else "windowed"
         )
 
+    elif indice == 2:
+        # Cambiar al siguiente índice de resolución
+        current_index = settings.get("resolution_index", 0)
+        new_index = (current_index + 1) % len(resolutions_available)
+        settings["resolution_index"] = new_index
+
     save_settings()
     load_settings()
+
 
 pygame.init()
 FONT = pygame.font.SysFont("arial", 28)
@@ -158,35 +182,35 @@ def recenter_buttons():
     global buttons_main, buttons_options, buttons_sub
     # Main menu
     buttons_main = [
-        (center_rect(150, 200, 50), "Empezar", start_game_menu),
-        (center_rect(290, 200, 50), "Opciones", options_menu),
-        (center_rect(420, 200, 50), "Salir", exit_game),
+        (center_rect(290, 200, 50), "Empezar", start_game_menu),
+        (center_rect(420, 200, 50), "Opciones", options_menu),
+        (center_rect(570, 200, 50), "Salir", exit_game),
     ]
 
     # Options menu
     buttons_options = [
-        (center_rect(150, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
-        (center_rect(290, 200, 50), "Opcion2", lambda: print("opcion2")),
-        (center_rect(420, 200, 50), "Opcion3", lambda: print("opcion3")),
-        (center_rect(560, 200, 50), "Volver", back_to_main_menu),
+        (center_rect(290, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
+        (center_rect(420, 200, 50), settings["resolution"], lambda: modify_settings(2)),
+        (center_rect(570, 200, 50), "Opcion3", lambda: print("opcion3")),
+        (center_rect(720, 200, 50), "Volver", back_to_main_menu),
     ]
 
     # Submenu
     buttons_sub = [
-        (center_rect(150, 200, 50), "Game 1", ("load", 1)),
-        (center_rect(150, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
-        (center_rect(250, 200, 50), "Game 2", ("load", 2)),
-        (center_rect(250, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
-        (center_rect(350, 200, 50), "Game 3", ("load", 3)),
-        (center_rect(350, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
-        (center_rect(450, 200, 50), "Volver", back_to_main_menu),
+        (center_rect(290, 200, 50), "Game 1", ("load", 1)),
+        (center_rect(290, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
+        (center_rect(390, 200, 50), "Game 2", ("load", 2)),
+        (center_rect(390, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
+        (center_rect(490, 200, 50), "Game 3", ("load", 3)),
+        (center_rect(490, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
+        (center_rect(590, 200, 50), "Volver", back_to_main_menu),
     ]
 
 
 buttons_main = [
-    (center_rect(150, 200, 50), "Empezar", start_game_menu),
-    (center_rect(290, 200, 50), "Opciones", options_menu),
-    (center_rect(420, 200, 50), "Salir", exit_game),
+    (center_rect(290, 200, 50), "Empezar", start_game_menu),
+    (center_rect(420, 200, 50), "Opciones", options_menu),
+    (center_rect(570, 200, 50), "Salir", exit_game),
 ]
 
 
