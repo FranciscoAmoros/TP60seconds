@@ -1,0 +1,210 @@
+import pygame, os
+from time import sleep
+import json
+import game
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GRAY = (180, 180, 180)
+ruta_actual = os.path.dirname(__file__)
+
+settings_default = {
+    "display_mode": "windowed",
+    "resolution": "1080x720"
+}
+
+settings = {}
+ruta_settings = os.path.join(ruta_actual, "settings")
+os.makedirs(ruta_settings, exist_ok=True)
+
+
+def load_settings():
+    global settings_root
+    global settings
+    settings_root = os.path.join(ruta_settings, "settings.json")
+
+    if os.path.exists(settings_root):
+        with open(settings_root, "r") as archivo:
+            settings = json.load(archivo)
+    else:
+        settings = settings_default.copy()
+        with open(settings_root, "w") as archivo:
+            json.dump(settings, archivo, indent=4)
+    update_config()
+
+def update_config():
+    global screen
+    global settings
+    if settings["display_mode"] == "fullscreen":
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        screen.fill((50, 200, 255))
+    else:
+        screen = pygame.display.set_mode((1080, 720))
+        
+
+def save_settings():
+    global settings
+    with open(settings_root, "w") as archivo:
+        json.dump(settings, archivo, indent=4)
+
+def modify_settings(indice):
+    global settings  # si settings es una variable global
+    if indice == 1:
+        settings["display_mode"] = (
+            "fullscreen" if settings["display_mode"] == "windowed" else "windowed"
+        )
+
+    save_settings()
+    load_settings()
+
+pygame.init()
+FONT = pygame.font.SysFont("arial", 28)
+load_settings()
+screen_width, screen_high = screen.get_size()
+pygame.display.flip()
+clock = pygame.time.Clock()
+
+
+ruta_saves = os.path.join(ruta_actual, "saves")
+os.makedirs(ruta_saves, exist_ok=True)
+
+def draw_button(screen, rect, text, font):
+    pygame.draw.rect(screen, GRAY, rect)
+    text_surface = font.render(text, True, BLACK)
+    screen.blit(
+        text_surface,
+        (rect.x + (rect.width - text_surface.get_width()) // 2,
+         rect.y + (rect.height - text_surface.get_height()) // 2)
+    )
+
+estado_juego_inicial = {
+    "objetos": {
+        "comida": {
+            "bizcochitos don satur": 0,
+            "medialunas": 0,
+            "lata de duraznos": 0,
+            "lata de atun": 0,
+            "empanadas de carne": 0
+        },
+        "agua": 0,
+        "medicina": {
+            "vendas": 0,
+            "botiquin": 0,
+            "remedios": [0, 0, 0]
+        }
+    },
+    "dia": 0
+}
+
+estado_juego = {}
+indice_partida = 1
+
+def delete_game(indice_partida):
+
+    estado_juego = {}
+
+
+def load_game(indice_partida):
+    global estado_juego
+    partida_root = os.path.join(ruta_saves, f"partida{indice_partida}.json")
+
+    if os.path.exists(partida_root):
+        with open(partida_root, "r") as archivo:
+            estado_juego = json.load(archivo)
+    else:
+        estado_juego = estado_juego_inicial.copy()
+        with open(partida_root, "w") as archivo:
+            json.dump(estado_juego, archivo, indent=4)
+    estado_juego = game.start_game(estado_juego, screen)
+        
+def save_game(indice_partida):
+    global estado_juego
+    partida_root = os.path.join(ruta_saves, f"partida{indice_partida}.json")
+
+    with open(partida_root, "w") as archivo:
+        json.dump(estado_juego, archivo, indent=4)
+
+def start_game_menu():
+    global submenu_active
+    submenu_active = True
+
+def options_menu():
+    global options_menu_active
+    options_menu_active = True
+
+def exit_game():
+    pygame.quit()
+    exit()
+
+def back_to_main_menu():
+    global options_menu_active
+    global submenu_active
+    options_menu_active = False
+    submenu_active = False
+
+
+buttons_main = [
+    (pygame.Rect(screen_width/2, 150, 200, 50), "Empezar", start_game_menu),
+    (pygame.Rect(screen_width/2, 290, 200, 50), "Opciones", options_menu),
+    (pygame.Rect(screen_width/2, 420, 200, 50), "Salir", exit_game),
+]
+
+buttons_options = [
+    (pygame.Rect(screen_width/2, 150, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
+    (pygame.Rect(screen_width/2, 290, 200, 50), "Opcion2", lambda: print("opcion2")),
+    (pygame.Rect(screen_width/2, 420, 200, 50), "Opcion3", lambda: print("opcion3")),
+    (pygame.Rect(screen_width/2, 560, 200, 50), "Volver", back_to_main_menu),
+]
+
+buttons_sub = [
+    (pygame.Rect(screen_width/2, 150, 200, 50), "Game 1", 1),
+    (pygame.Rect(screen_width/2, 250, 200, 50), "X", 2),
+    (pygame.Rect(screen_width/2, 350, 200, 50), "Game 2", 3),
+    (pygame.Rect(screen_width/2, 450, 200, 50), "X", 4),
+    (pygame.Rect(screen_width/2, 550, 200, 50), "Game 3", 5),
+    (pygame.Rect(screen_width/2, 650, 200, 50), "X", 6),
+    (pygame.Rect(screen_width/2, 750, 200, 50), "Volver", back_to_main_menu),
+]
+            
+
+running = True
+submenu_active = False
+options_menu_active = False
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            exit_game()
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            pos = pygame.mouse.get_pos()
+            if submenu_active:
+                botones = buttons_sub
+            elif options_menu_active:
+                botones = buttons_options
+            else:
+                botones = buttons_main
+
+            for rect, _, action in botones:
+                if rect.collidepoint(pos):
+                    if callable(action):
+                        action()
+                    else:
+                        if action % 2 == 0:
+                            delete_game(action)
+                        else:
+                            load_game(action)
+
+    # Dibujar botones del menú activo
+    if submenu_active:
+        botones = buttons_sub
+    elif options_menu_active:
+        botones = buttons_options
+    else:
+        botones = buttons_main
+
+    screen.fill(WHITE)  # 🔁 Limpiar pantalla antes de dibujar
+    for rect, text, _ in botones:
+        draw_button(screen, rect, text, FONT)
+
+    pygame.display.flip()
+    clock.tick(60)
