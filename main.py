@@ -33,14 +33,15 @@ def load_settings():
     update_config()
 
 def update_config():
-    global screen
+    global screen, screen_width, screen_high
     global settings
     if settings["display_mode"] == "fullscreen":
         screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         screen.fill((50, 200, 255))
     else:
-        screen = pygame.display.set_mode((1080, 720))
-        
+        screen = pygame.display.set_mode((1152, 864))
+
+    screen_width, screen_high = screen.get_size()
 
 def save_settings():
     global settings
@@ -153,6 +154,34 @@ def center_rect(y, w, h):
     return pygame.Rect((screen_width - w) // 2, y, w, h)
 
 
+def recenter_buttons():
+    global buttons_main, buttons_options, buttons_sub
+    # Main menu
+    buttons_main = [
+        (center_rect(150, 200, 50), "Empezar", start_game_menu),
+        (center_rect(290, 200, 50), "Opciones", options_menu),
+        (center_rect(420, 200, 50), "Salir", exit_game),
+    ]
+
+    # Options menu
+    buttons_options = [
+        (center_rect(150, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
+        (center_rect(290, 200, 50), "Opcion2", lambda: print("opcion2")),
+        (center_rect(420, 200, 50), "Opcion3", lambda: print("opcion3")),
+        (center_rect(560, 200, 50), "Volver", back_to_main_menu),
+    ]
+
+    # Submenu
+    buttons_sub = [
+        (center_rect(150, 200, 50), "Game 1", ("load", 1)),
+        (center_rect(150, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
+        (center_rect(250, 200, 50), "Game 2", ("load", 2)),
+        (center_rect(250, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
+        (center_rect(350, 200, 50), "Game 3", ("load", 3)),
+        (center_rect(350, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
+        (center_rect(450, 200, 50), "Volver", back_to_main_menu),
+    ]
+
 
 buttons_main = [
     (center_rect(150, 200, 50), "Empezar", start_game_menu),
@@ -206,6 +235,7 @@ while running:
                 if rect.collidepoint(pos):
                     if callable(action):
                         action()
+                        recenter_buttons()
                     else:
                         tipo, indice = action
                         if tipo == "delete":
