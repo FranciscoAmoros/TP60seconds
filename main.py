@@ -95,12 +95,17 @@ os.makedirs(ruta_saves, exist_ok=True)
 
 def draw_button(screen, rect, text, font):
     pygame.draw.rect(screen, GRAY, rect)
-    text_surface = font.render(text, True, BLACK)
+    if callable(text):
+        text_surface = font.render(text(), True, BLACK)  # Ejecutar lambda si es callable
+    else:
+        text_surface = font.render(text, True, BLACK)
+    
     screen.blit(
         text_surface,
         (rect.x + (rect.width - text_surface.get_width()) // 2,
          rect.y + (rect.height - text_surface.get_height()) // 2)
     )
+
 
 estado_juego_inicial = {
     "objetos": {
@@ -147,6 +152,13 @@ def load_game(indice_partida):
         with open(partida_root, "w") as archivo:
             json.dump(estado_juego, archivo, indent=4)
     estado_juego = game.start_game(estado_juego, screen)
+
+def get_state_game(indice):
+    partida_root = os.path.join(ruta_saves, f"partida{indice}.json")
+    if os.path.exists(partida_root):
+        return f"Game {indice}"
+    else:
+        return "New Game"
         
 def save_game(indice_partida):
     global estado_juego
@@ -163,6 +175,10 @@ def options_menu():
     global options_menu_active
     options_menu_active = True
 
+def create_new_game():
+    global dificulty_menu_active
+    dificulty_menu_active = True
+
 def exit_game():
     pygame.quit()
     exit()
@@ -170,8 +186,18 @@ def exit_game():
 def back_to_main_menu():
     global options_menu_active
     global submenu_active
+    global dificulty_menu_active
+    dificulty_menu_active = False
     options_menu_active = False
     submenu_active = False
+
+def back_to_games_menu():
+    global options_menu_active
+    global submenu_active
+    global dificulty_menu_active
+    dificulty_menu_active = False
+    options_menu_active = False
+    submenu_active = True
 
 def center_rect(y, w, h):
     """Devuelve un Rect centrado horizontalmente en la pantalla"""
@@ -190,18 +216,18 @@ def recenter_buttons():
     # Options menu
     buttons_options = [
         (center_rect(290, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
-        (center_rect(420, 200, 50), f"resolution: {settings["resolution"]}", lambda: modify_settings(2)),
+        (center_rect(420, 200, 50), f"resolution: {resolutions_available[settings['resolution_index']]}", lambda: modify_settings(2)),
         (center_rect(570, 200, 50), "Opcion3", lambda: print("opcion3")),
         (center_rect(720, 200, 50), "Volver", back_to_main_menu),
     ]
 
     # Submenu
     buttons_sub = [
-        (center_rect(290, 200, 50), "Game 1", ("load", 1)),
+        (center_rect(290, 200, 50), lambda: get_state_game(1), ("load", 1)),
         (center_rect(290, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
-        (center_rect(390, 200, 50), "Game 2", ("load", 2)),
+        (center_rect(390, 200, 50), lambda: get_state_game(2), ("load", 2)),
         (center_rect(390, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
-        (center_rect(490, 200, 50), "Game 3", ("load", 3)),
+        (center_rect(490, 200, 50), lambda: get_state_game(3), ("load", 3)),
         (center_rect(490, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
         (center_rect(590, 200, 50), "Volver", back_to_main_menu),
     ]
@@ -216,7 +242,7 @@ buttons_main = [
 
 buttons_options = [
     (center_rect(150, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
-    (center_rect(290, 200, 50), f"resolution: {settings["resolution"]}", lambda: print("opcion2")),
+    (center_rect(290, 200, 50), f"resolution: {resolutions_available[settings['resolution_index']]}", lambda: modify_settings(2)),
     (center_rect(420, 200, 50), "Opcion3", lambda: print("opcion3")),
     (center_rect(560, 200, 50), "Volver", back_to_main_menu),
 ]
@@ -235,12 +261,23 @@ buttons_sub = [
     (center_rect(450, 200, 50), "Volver", back_to_main_menu),
 ]
 
+buttons_choose_dificulty = [
+    (center_rect(150, 200, 50), "Easy", ("create", 1)),
+
+    (center_rect(250, 200, 50), "Medium", ("create", 2)),
+
+    (center_rect(350, 200, 50), "Hard", ("create", 3)),
+
+    (center_rect(450, 200, 50), "Volver", back_to_main_menu),
+]
+
 
             
 
 running = True
 submenu_active = False
 options_menu_active = False
+dificulty_menu_active = False
 
 while running:
     for event in pygame.event.get():
@@ -252,6 +289,8 @@ while running:
                 botones = buttons_sub
             elif options_menu_active:
                 botones = buttons_options
+            #elif dificulty_menu_active:
+                #botones = buttons_choose_dificulty
             else:
                 botones = buttons_main
 
@@ -264,6 +303,9 @@ while running:
                         tipo, indice = action
                         if tipo == "delete":
                             delete_game(indice)
+                        #elif tipo == "create":
+                            #create_new_game()
+                            
                         else:
                             load_game(indice)
 
@@ -272,6 +314,8 @@ while running:
         botones = buttons_sub
     elif options_menu_active:
         botones = buttons_options
+    elif dificulty_menu_active:
+        botones = buttons_choose_dificulty
     else:
         botones = buttons_main
 
