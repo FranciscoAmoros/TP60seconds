@@ -48,7 +48,7 @@ def save_settings():
         json.dump(settings, archivo, indent=4)
 
 def modify_settings(indice):
-    global settings  # si settings es una variable global
+    global settings
     if indice == 1:
         settings["display_mode"] = (
             "fullscreen" if settings["display_mode"] == "windowed" else "windowed"
@@ -101,6 +101,12 @@ indice_partida = 1
 
 def delete_game(indice_partida):
 
+    global estado_juego
+    partida_root = os.path.join(ruta_saves, f"partida{indice_partida}.json")
+
+    if os.path.exists(partida_root):
+        os.remove(partida_root)
+
     estado_juego = {}
 
 
@@ -142,29 +148,41 @@ def back_to_main_menu():
     options_menu_active = False
     submenu_active = False
 
+def center_rect(y, w, h):
+    """Devuelve un Rect centrado horizontalmente en la pantalla"""
+    return pygame.Rect((screen_width - w) // 2, y, w, h)
+
+
 
 buttons_main = [
-    (pygame.Rect(screen_width/2, 150, 200, 50), "Empezar", start_game_menu),
-    (pygame.Rect(screen_width/2, 290, 200, 50), "Opciones", options_menu),
-    (pygame.Rect(screen_width/2, 420, 200, 50), "Salir", exit_game),
+    (center_rect(150, 200, 50), "Empezar", start_game_menu),
+    (center_rect(290, 200, 50), "Opciones", options_menu),
+    (center_rect(420, 200, 50), "Salir", exit_game),
 ]
+
 
 buttons_options = [
-    (pygame.Rect(screen_width/2, 150, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
-    (pygame.Rect(screen_width/2, 290, 200, 50), "Opcion2", lambda: print("opcion2")),
-    (pygame.Rect(screen_width/2, 420, 200, 50), "Opcion3", lambda: print("opcion3")),
-    (pygame.Rect(screen_width/2, 560, 200, 50), "Volver", back_to_main_menu),
+    (center_rect(150, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
+    (center_rect(290, 200, 50), "Opcion2", lambda: print("opcion2")),
+    (center_rect(420, 200, 50), "Opcion3", lambda: print("opcion3")),
+    (center_rect(560, 200, 50), "Volver", back_to_main_menu),
 ]
 
+
 buttons_sub = [
-    (pygame.Rect(screen_width/2, 150, 200, 50), "Game 1", 1),
-    (pygame.Rect(screen_width/2, 250, 200, 50), "X", 2),
-    (pygame.Rect(screen_width/2, 350, 200, 50), "Game 2", 3),
-    (pygame.Rect(screen_width/2, 450, 200, 50), "X", 4),
-    (pygame.Rect(screen_width/2, 550, 200, 50), "Game 3", 5),
-    (pygame.Rect(screen_width/2, 650, 200, 50), "X", 6),
-    (pygame.Rect(screen_width/2, 750, 200, 50), "Volver", back_to_main_menu),
+    (center_rect(150, 200, 50), "Game 1", ("load", 1)),
+    (center_rect(150, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
+
+    (center_rect(250, 200, 50), "Game 2", ("load", 2)),
+    (center_rect(250, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
+
+    (center_rect(350, 200, 50), "Game 3", ("load", 3)),
+    (center_rect(350, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
+
+    (center_rect(450, 200, 50), "Volver", back_to_main_menu),
 ]
+
+
             
 
 running = True
@@ -189,10 +207,11 @@ while running:
                     if callable(action):
                         action()
                     else:
-                        if action % 2 == 0:
-                            delete_game(action)
+                        tipo, indice = action
+                        if tipo == "delete":
+                            delete_game(indice)
                         else:
-                            load_game(action)
+                            load_game(indice)
 
     # Dibujar botones del menú activo
     if submenu_active:
@@ -202,7 +221,7 @@ while running:
     else:
         botones = buttons_main
 
-    screen.fill(WHITE)  # 🔁 Limpiar pantalla antes de dibujar
+    screen.fill(WHITE)
     for rect, text, _ in botones:
         draw_button(screen, rect, text, FONT)
 
