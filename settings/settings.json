@@ -1,4 +1,5 @@
 {
-    "display_mode": "windowed",
-    "resolution": "1080x720"
+    "display_mode": "fullscreen",
+    "resolution": "1080x720",
+    "resolution_index": 0
 }
