@@ -5,8 +5,11 @@ WHITE = (255, 255, 255)
 ORIGINAL_TILE_SIZE = 32
 SCALE_FACTOR = 2
 TILE_SIZE = ORIGINAL_TILE_SIZE * SCALE_FACTOR  # 64x64
+SOLID_TILES = [2]
 TILE_FOLDER = 'imagenes/tiles'
 MAP_FILE = 'map.txt'
+
+collision_rects = []
 
 pygame.init()
 
@@ -54,6 +57,22 @@ def draw_map(screen, tilemap, tiles, tile_size):
             if tile_id in tiles:
                 screen.blit(tiles[tile_id], (x * tile_size + offset_x, y * tile_size + offset_y))
 
+def draw_colliders(screen, tilemap):
+    global collision_rects
+
+    map_width = len(tilemap[0]) * TILE_SIZE
+    map_height = len(tilemap) * TILE_SIZE
+    screen_width, screen_height = screen.get_size()
+    offset_x = (screen_width - map_width) // 2
+    offset_y = (screen_height - map_height) // 2
+
+    for y, row in enumerate(tilemap):
+        for x, tile_id in enumerate(row):
+            if tile_id in SOLID_TILES:
+                rect = pygame.Rect(x * TILE_SIZE + offset_x, y * TILE_SIZE + offset_y, TILE_SIZE, TILE_SIZE)
+                collision_rects.append(rect)
+            
+
 
 def main(estado, screen1):
     global screen
@@ -64,44 +83,79 @@ def main(estado, screen1):
     back_to_menu = False
     tiles = load_tiles(TILE_FOLDER)
     tilemap = load_map(MAP_FILE)
+    draw_colliders(screen, tilemap)
     clock = pygame.time.Clock()
 
-    # Fuente para el contador
-    font = pygame.font.SysFont(None, 72)  # un poco más grande
 
-    # Tiempo inicial (en milisegundos)
+
+    font = pygame.font.SysFont(None, 72)
+    speed = 5
+
     start_ticks = pygame.time.get_ticks()
-    countdown_time = 60  # segundos
+    countdown_time = 60 
+
+    NEGRO = (0, 0, 0)
+    ROJO = (255, 0, 0)
+
+    player = pygame.Rect(300, 220, 40, 40)
+
+    screen_w, screen_h = screen.get_size()
 
     while not done:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 quit()
 
-        # 1. Borrar pantalla
+        teclas = pygame.key.get_pressed()
+        dx, dy = 0, 0
+
+        if teclas[pygame.K_w]: 
+            dy = -speed
+        if teclas[pygame.K_s]: 
+            dy = speed
+        if teclas[pygame.K_a]: 
+            dx = -speed
+        if teclas[pygame.K_d]: 
+            dx = speed
+
+        player.x += dx
+        player.y += dy
+
+        if player.left < 0: player.left = 0
+        if player.right > screen_w: player.right = screen_w
+        if player.top < 0: player.top = 0
+        if player.bottom > screen_h: player.bottom = screen_h
+
+        for collider in collision_rects:
+            if player.colliderect(collider):
+                player.x -= dx
+                break
+
+        for collider in collision_rects:
+            if player.colliderect(collider):
+                player.y -= dy
+                break
+
+
+
         screen.fill(BLACK)
 
-        # 2. Dibujar mapa
         draw_map(screen, tilemap, tiles, TILE_SIZE)
 
-        # 3. Calcular tiempo restante
         seconds_passed = (pygame.time.get_ticks() - start_ticks) // 1000
         time_left = countdown_time - seconds_passed
+        pygame.draw.rect(screen, ROJO, player)
 
-        # 4. Dibujar contador (centrado arriba)
         if time_left >= 0:
             text = font.render(str(time_left), True, (255, 255, 255))
             text_rect = text.get_rect(center=(screen.get_width() // 2, 40))  
             screen.blit(text, text_rect)
         else:
-            # Se terminó el tiempo
+  
             done = True
             back_to_menu = True
 
-        # 5. Actualizar pantalla
         pygame.display.flip()
         clock.tick(60)
 
     return estado_juego, back_to_menu
-
-
