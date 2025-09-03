@@ -190,7 +190,7 @@ def recenter_buttons():
     # Options menu
     buttons_options = [
         (center_rect(290, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
-        (center_rect(420, 200, 50), settings["resolution"], lambda: modify_settings(2)),
+        (center_rect(420, 200, 50), f"resolution: {settings["resolution"]}", lambda: modify_settings(2)),
         (center_rect(570, 200, 50), "Opcion3", lambda: print("opcion3")),
         (center_rect(720, 200, 50), "Volver", back_to_main_menu),
     ]
@@ -216,7 +216,7 @@ buttons_main = [
 
 buttons_options = [
     (center_rect(150, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
-    (center_rect(290, 200, 50), "Opcion2", lambda: print("opcion2")),
+    (center_rect(290, 200, 50), f"resolution: {settings["resolution"]}", lambda: print("opcion2")),
     (center_rect(420, 200, 50), "Opcion3", lambda: print("opcion3")),
     (center_rect(560, 200, 50), "Volver", back_to_main_menu),
 ]
