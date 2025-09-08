@@ -3,4 +3,3 @@ Package    Version
 pip        24.0
 pygame     2.6.1
 
-Python 3.11.1
