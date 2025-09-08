@@ -123,7 +123,8 @@ estado_juego_inicial = {
             "remedios": [0, 0, 0]
         }
     },
-    "dia": 0
+    "dia": 0,
+    "dificultad": "Easy"
 }
 
 estado_juego = {}
@@ -141,6 +142,8 @@ def delete_game(indice_partida):
 
 
 def load_game(indice_partida):
+    global dificulty_menu_active
+    global screen
     global estado_juego
     partida_root = os.path.join(ruta_saves, f"partida{indice_partida}.json")
 
@@ -151,7 +154,12 @@ def load_game(indice_partida):
         estado_juego = estado_juego_inicial.copy()
         with open(partida_root, "w") as archivo:
             json.dump(estado_juego, archivo, indent=4)
-    estado_juego = game.start_game(estado_juego, screen)
+        dificulty_menu_active = True
+
+def start_game(dificultad):
+    global estado_juego
+    global screen
+    estado_juego = game.start_game(estado_juego, screen, dificultad)
 
 def get_state_game(indice):
     partida_root = os.path.join(ruta_saves, f"partida{indice}.json")
@@ -175,9 +183,6 @@ def options_menu():
     global options_menu_active
     options_menu_active = True
 
-def create_new_game():
-    global dificulty_menu_active
-    dificulty_menu_active = True
 
 def exit_game():
     pygame.quit()
@@ -303,11 +308,11 @@ while running:
                         tipo, indice = action
                         if tipo == "delete":
                             delete_game(indice)
-                        #elif tipo == "create":
-                            #create_new_game()
-                            
+                        elif tipo == "create":
+                            dificultad = buttons_choose_dificulty[1]
                         else:
                             load_game(indice)
+                            start_game()
 
     # Dibujar botones del menú activo
     if submenu_active:
