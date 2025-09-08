@@ -118,6 +118,15 @@ def main(estado, screen1):
         if teclas[pygame.K_d]: 
             dx = speed
 
+        if teclas[pygame.K_LEFT]:
+            dx = -speed
+        if teclas[pygame.K_RIGHT]:
+            dx = speed
+        if teclas[pygame.K_UP]:
+            dy = -speed
+        if teclas[pygame.K_DOWN]:
+            dy = speed
+        
         player.x += dx
         player.y += dy
 
