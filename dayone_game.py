@@ -3,17 +3,95 @@ import pygame, random, os, datetime
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 ORIGINAL_TILE_SIZE = 32
-SCALE_FACTOR = 2
+SCALE_FACTOR = 1.5
 TILE_SIZE = ORIGINAL_TILE_SIZE * SCALE_FACTOR  # 64x64
 SOLID_TILES = [2]
 TILE_FOLDER = 'imagenes/tiles'
 MAP_FILE = 'map.txt'
+
+OBJECTS = "imagenes_objs/"
 
 collision_rects = []
 
 pygame.init()
 
 estado_juego = {}
+
+objects_quantity = {
+    "Easy": {"comida": 6, "medicina": 3, "agua": 10},
+    "Medium": {"comida": 5, "medicina": 1, "agua": 8},
+    "Hard": {"comida": 3, "medicina": 0, "agua": 6}
+}
+
+def get_random_posible_position(tilemap):
+    # Tamaño del mapa en píxeles
+    map_width = len(tilemap[0]) * TILE_SIZE
+    map_height = len(tilemap) * TILE_SIZE
+    screen_width, screen_height = screen.get_size()
+
+    # Offset para centrar
+    offset_x = (screen_width - map_width) // 2
+    offset_y = (screen_height - map_height) // 2
+
+    # Obtener posiciones de tiles válidos (no sólidos)
+    valid_positions = []
+    for y, row in enumerate(tilemap):
+        for x, tile_id in enumerate(row):
+            if tile_id not in SOLID_TILES:
+                px = x * TILE_SIZE + offset_x
+                py = y * TILE_SIZE + offset_y
+                rect = pygame.Rect(px, py, 40, 40)
+                if not any(rect.colliderect(collider) for collider in collision_rects):
+                    valid_positions.append((px, py))
+
+    # Elegir una al azar
+    if valid_positions:
+        return random.choice(valid_positions)
+    else:
+        return 0, 0  # Fallback si no hay lugar
+
+
+def get_objects(estado_juego, tilemap):
+    objects = []
+
+    for _ in range(objects_quantity[estado_juego["dificultad"]]["comida"]):
+        obj = random.choice(list(estado_juego["objetos"]["comida"].keys()))
+        image_path = os.path.join(OBJECTS, f"{obj}.png")
+        if not os.path.exists(image_path): continue
+
+        objects.append({
+            "type": "comida",
+            "name": obj,
+            "image": pygame.transform.scale(pygame.image.load(image_path).convert_alpha(), (40, 40)),
+            "rect": pygame.Rect(get_random_posible_position(tilemap), (40, 40))
+        })
+
+    for _ in range(objects_quantity[estado_juego["dificultad"]]["medicina"]):
+        obj = random.choice(list(estado_juego["objetos"]["medicina"].keys()))
+        image_path = os.path.join(OBJECTS, f"{obj}.png")
+        if not os.path.exists(image_path): continue
+
+        objects.append({
+            "type": "medicina",
+            "name": obj,
+            "image": pygame.transform.scale(pygame.image.load(image_path).convert_alpha(), (40, 40)),
+            "rect": pygame.Rect(get_random_posible_position(tilemap), (40, 40))
+        })
+
+    for _ in range(objects_quantity[estado_juego["dificultad"]]["agua"]):
+        obj = "agua"
+        image_path = os.path.join(OBJECTS, f"{obj}.png")
+        if not os.path.exists(image_path): continue
+
+        objects.append({
+            "type": "agua",
+            "name": obj,
+            "image": pygame.transform.scale(pygame.image.load(image_path).convert_alpha(), (40, 40)),
+            "rect": pygame.Rect(get_random_posible_position(tilemap), (40, 40))
+        })
+
+    return objects
+
 
 def load_tiles(folder):
     tiles = {}
@@ -80,10 +158,10 @@ def main(estado, screen1):
     global estado_juego
     estado_juego = estado
     done = False
-    back_to_menu = False
     tiles = load_tiles(TILE_FOLDER)
     tilemap = load_map(MAP_FILE)
     draw_colliders(screen, tilemap)
+    objects = get_objects(estado_juego, tilemap)
     clock = pygame.time.Clock()
 
 
@@ -97,7 +175,7 @@ def main(estado, screen1):
     NEGRO = (0, 0, 0)
     ROJO = (255, 0, 0)
 
-    player = pygame.Rect(300, 220, 40, 40)
+    player = pygame.Rect(400, 300, 40, 40)
 
     screen_w, screen_h = screen.get_size()
 
@@ -154,6 +232,13 @@ def main(estado, screen1):
         seconds_passed = (pygame.time.get_ticks() - start_ticks) // 1000
         time_left = countdown_time - seconds_passed
         pygame.draw.rect(screen, ROJO, player)
+        for obj in objects:
+            screen.blit(obj["image"], obj["rect"])
+            if player.colliderect(obj["rect"]):
+                #estado_juego["objetos"][obj["type"]][obj["name"]] += 1
+                #objects.remove(obj)
+                print(f"Has recogido: {obj['name']}")
+                objects.remove(obj)
 
         if time_left >= 0:
             text = font.render(str(time_left), True, (255, 255, 255))
@@ -162,9 +247,8 @@ def main(estado, screen1):
         else:
   
             done = True
-            back_to_menu = True
 
         pygame.display.flip()
         clock.tick(60)
 
-    return estado_juego, back_to_menu
+    return estado_juego
