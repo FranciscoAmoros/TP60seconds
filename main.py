@@ -121,19 +121,19 @@ def draw_button(screen, rect, text, font):
 estado_juego_inicial = {
     "objetos": {
         "comida": {
-            "bizcochitos don satur": 0,
-            "medialunas": 0,
-            "lata de duraznos": 0,
-            "lata de atun": 0,
-            "empanadas de carne": 0
+            "bizcochitos don satur": [0, 1],
+            "medialunas": [0, 1],
+            "lata de duraznos": [0, 1],
+            "lata de atun": [0, 1],
+            "empanadas de carne": [0, 1]
         },
-        "agua": 0,
+        "agua": [0,1],
         "medicina": {
-            "vendas": 0,
-            "botiquin": 0,
-            "jarabe": 0,
-            "capsula": 0,
-            "pastilla": 0
+            "vendas": [0,1],
+            "botiquin": [0, 2],
+            "jarabe": [0,1],
+            "capsula": [0,1],
+            "pastilla": [0,1]
         }
     },
     "dia": 0,

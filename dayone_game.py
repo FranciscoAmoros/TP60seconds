@@ -9,6 +9,8 @@ SOLID_TILES = [2]
 TILE_FOLDER = 'imagenes/tiles'
 MAP_FILE = 'map.txt'
 
+inventory=[]
+
 OBJECTS = "imagenes_objs/"
 
 collision_rects = []
@@ -63,19 +65,24 @@ def get_objects(estado_juego, tilemap):
             "type": "comida",
             "name": obj,
             "image": pygame.transform.scale(pygame.image.load(image_path).convert_alpha(), (40, 40)),
-            "rect": pygame.Rect(get_random_posible_position(tilemap), (40, 40))
+            "rect": pygame.Rect(get_random_posible_position(tilemap), (40, 40)),
+            
         })
 
     for _ in range(objects_quantity[estado_juego["dificultad"]]["medicina"]):
-        obj = random.choice(list(estado_juego["objetos"]["medicina"].keys()))
+
+        llave = random.choice(list(estado_juego["objetos"]["medicina"].keys()))
+        value = estado_juego["objetos"]["medicina"][llave]
         image_path = os.path.join(OBJECTS, f"{obj}.png")
         if not os.path.exists(image_path): continue
 
         objects.append({
             "type": "medicina",
-            "name": obj,
+            "name": llave,
+            "value": value,
             "image": pygame.transform.scale(pygame.image.load(image_path).convert_alpha(), (40, 40)),
             "rect": pygame.Rect(get_random_posible_position(tilemap), (40, 40))
+        
         })
 
     for _ in range(objects_quantity[estado_juego["dificultad"]]["agua"]):
@@ -237,8 +244,11 @@ def main(estado, screen1):
             if player.colliderect(obj["rect"]):
                 #estado_juego["objetos"][obj["type"]][obj["name"]] += 1
                 #objects.remove(obj)
-                print(f"Has recogido: {obj['name']}")
-                objects.remove(obj)
+                if not len(inventory) == 4:
+                    print(f"Has recogido: {obj['name']}")
+                    objects.remove(obj)
+                    inventory.append(obj)
+                    obj["value"][0] += 1
 
         if time_left >= 0:
             text = font.render(str(time_left), True, (255, 255, 255))
