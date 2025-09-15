@@ -175,8 +175,6 @@ def main(estado, screen1):
     objects = get_objects(estado_juego, tilemap)
     clock = pygame.time.Clock()
 
-
-
     font = pygame.font.SysFont(None, 72)
     speed = 5
 
@@ -234,8 +232,6 @@ def main(estado, screen1):
                 player.y -= dy
                 break
 
-
-
         screen.fill(BLACK)
 
         draw_map(screen, tilemap, tiles, TILE_SIZE)
@@ -246,20 +242,40 @@ def main(estado, screen1):
         for obj in objects:
             screen.blit(obj["image"], obj["rect"])
             if player.colliderect(obj["rect"]):
-                #estado_juego["objetos"][obj["type"]][obj["name"]] += 1
-                #objects.remove(obj)
                 if not len(inventory) == 4:
                     print(f"Has recogido: {obj['name']}")
                     obj["value"] = obj["value"][0] + 1
                     objects.remove(obj)
                     inventory.append(obj)
 
+        # DIBUJAR INVENTARIO
+        inventory_box_size = 50  # Tamaño de cada recuadro
+        inventory_margin = 10    # Espacio entre recuadros
+        inventory_x = 10         # Posición X donde inicia el inventario en pantalla
+        inventory_y = screen.get_height() - inventory_box_size - 10  # Posición Y (abajo de la pantalla)
+
+        for i, item in enumerate(inventory):
+            rect_x = inventory_x + i * (inventory_box_size + inventory_margin)
+            rect = pygame.Rect(rect_x, inventory_y, inventory_box_size, inventory_box_size)
+            
+            # Fondo gris semitransparente (blur simulado)
+            s = pygame.Surface((inventory_box_size, inventory_box_size), pygame.SRCALPHA)
+            s.fill((50, 50, 50, 180))  # Gris con alpha para transparencia
+            screen.blit(s, (rect_x, inventory_y))
+            
+            # Borde blanco
+            pygame.draw.rect(screen, WHITE, rect, 2)
+            
+            # Imagen escalada y centrada
+            img = pygame.transform.scale(item["image"], (inventory_box_size - 10, inventory_box_size - 10))
+            img_rect = img.get_rect(center=rect.center)
+            screen.blit(img, img_rect)
+
         if time_left >= 0:
             text = font.render(str(time_left), True, (255, 255, 255))
             text_rect = text.get_rect(center=(screen.get_width() // 2, 40))  
             screen.blit(text, text_rect)
         else:
-  
             done = True
 
         pygame.display.flip()
