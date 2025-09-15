@@ -250,9 +250,9 @@ def main(estado, screen1):
                 #objects.remove(obj)
                 if not len(inventory) == 4:
                     print(f"Has recogido: {obj['name']}")
+                    obj["value"] = obj["value"][0] + 1
                     objects.remove(obj)
                     inventory.append(obj)
-                    obj["value"] += 1
 
         if time_left >= 0:
             text = font.render(str(time_left), True, (255, 255, 255))
