@@ -57,13 +57,15 @@ def get_objects(estado_juego, tilemap):
     objects = []
 
     for _ in range(objects_quantity[estado_juego["dificultad"]]["comida"]):
-        obj = random.choice(list(estado_juego["objetos"]["comida"].keys()))
-        image_path = os.path.join(OBJECTS, f"{obj}.png")
+        llave = random.choice(list(estado_juego["objetos"]["comida"].keys()))
+        value = estado_juego["objetos"]["comida"][llave]
+        image_path = os.path.join(OBJECTS, f"{llave}.png")
         if not os.path.exists(image_path): continue
 
         objects.append({
             "type": "comida",
-            "name": obj,
+            "name": llave,
+            "value": value,
             "image": pygame.transform.scale(pygame.image.load(image_path).convert_alpha(), (40, 40)),
             "rect": pygame.Rect(get_random_posible_position(tilemap), (40, 40)),
             
@@ -73,7 +75,7 @@ def get_objects(estado_juego, tilemap):
 
         llave = random.choice(list(estado_juego["objetos"]["medicina"].keys()))
         value = estado_juego["objetos"]["medicina"][llave]
-        image_path = os.path.join(OBJECTS, f"{obj}.png")
+        image_path = os.path.join(OBJECTS, f"{llave}.png")
         if not os.path.exists(image_path): continue
 
         objects.append({
@@ -86,13 +88,15 @@ def get_objects(estado_juego, tilemap):
         })
 
     for _ in range(objects_quantity[estado_juego["dificultad"]]["agua"]):
-        obj = "agua"
-        image_path = os.path.join(OBJECTS, f"{obj}.png")
+        llave = "agua"
+        value = estado_juego["objetos"]["agua"][llave]
+        image_path = os.path.join(OBJECTS, f"{llave}.png")
         if not os.path.exists(image_path): continue
 
         objects.append({
             "type": "agua",
-            "name": obj,
+            "name": llave,
+            "value": value,
             "image": pygame.transform.scale(pygame.image.load(image_path).convert_alpha(), (40, 40)),
             "rect": pygame.Rect(get_random_posible_position(tilemap), (40, 40))
         })
