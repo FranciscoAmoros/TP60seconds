@@ -89,7 +89,7 @@ def get_objects(estado_juego, tilemap):
 
     for _ in range(objects_quantity[estado_juego["dificultad"]]["agua"]):
         llave = "agua"
-        value = estado_juego["objetos"]["agua"][llave]
+        value = estado_juego["objetos"]["agua"]
         image_path = os.path.join(OBJECTS, f"{llave}.png")
         if not os.path.exists(image_path): continue
 
@@ -252,7 +252,7 @@ def main(estado, screen1):
                     print(f"Has recogido: {obj['name']}")
                     objects.remove(obj)
                     inventory.append(obj)
-                    obj["value"][0] += 1
+                    obj["value"] += 1
 
         if time_left >= 0:
             text = font.render(str(time_left), True, (255, 255, 255))
