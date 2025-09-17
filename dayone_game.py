@@ -3,7 +3,7 @@ import pygame, random, os, datetime
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 ORIGINAL_TILE_SIZE = 32
-SCALE_FACTOR = 1.5
+SCALE_FACTOR = 1
 TILE_SIZE = ORIGINAL_TILE_SIZE * SCALE_FACTOR  # 64x64
 SOLID_TILES = [2]
 TILE_FOLDER = 'imagenes/tiles'
@@ -197,9 +197,9 @@ def main(estado, screen1):
     NEGRO = (0, 0, 0)
     ROJO = (255, 0, 0)
 
-    player = pygame.Rect(400, 300, 40, 40)
+    player = pygame.Rect(550, 350, 16, 16)
     BUNKER = pygame.image.load("bunker.png").convert_alpha()
-    BUNKER = pygame.transform.scale(BUNKER, (96, 96))
+    BUNKER = pygame.transform.scale(BUNKER, (64, 64))
 
     screen_w, screen_h = screen.get_size()
 
