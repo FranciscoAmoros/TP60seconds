@@ -6,6 +6,7 @@ import game
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (180, 180, 180)
+pygame.init()
 FUENTE = pygame.font.SysFont("arial", 36)
 ruta_actual = os.path.dirname(__file__)
 
@@ -92,8 +93,30 @@ def modify_settings(indice):
     save_settings()
     load_settings()
 
+botones_images = {
+    "green": pygame.image.load(os.path.join(ruta_actual, "UI", "button_green.png")),
+    "blue": pygame.image.load(os.path.join(ruta_actual, "UI", "button_blue.png")),
+    "red": pygame.image.load(os.path.join(ruta_actual, "UI", "button_red.png")),
+    "x": pygame.image.load(os.path.join(ruta_actual, "UI", "button_x.png")),
+}
 
-pygame.init()
+# Escalar las imágenes por un factor de 4
+botones_images_escalados = {
+    clave: pygame.transform.scale(img, (img.get_width() * 7, img.get_height() * 7))
+    for clave, img in botones_images.items()
+}
+
+botones_text_colors = {
+    "Empezar": "green",
+    "Opciones": "blue",
+    "Salir": "red",
+    "Volver": "red",
+    "X": "x",
+    "Easy": "green",
+    "Medium": "blue",
+    "Hard": "red"
+}
+
 FONT = pygame.font.SysFont("arial", 28)
 load_settings()
 screen_width, screen_high = screen.get_size()
@@ -105,17 +128,22 @@ ruta_saves = os.path.join(ruta_actual, "saves")
 os.makedirs(ruta_saves, exist_ok=True)
 
 def draw_button(screen, rect, text, font):
-    pygame.draw.rect(screen, GRAY, rect)
+    if not text in botones_text_colors:
+        color_key = "blue"  # Color por defecto si no está en el diccionario
+    else:
+        color_key = botones_text_colors[text]
+    screen.blit(botones_images_escalados[color_key], rect)
     if callable(text):
         text_surface = font.render(text(), True, BLACK)  # Ejecutar lambda si es callable
     else:
         text_surface = font.render(text, True, BLACK)
     
-    screen.blit(
-        text_surface,
-        (rect.x + (rect.width - text_surface.get_width()) // 2,
-         rect.y + (rect.height - text_surface.get_height()) // 2)
-    )
+    if not text == "X":
+        screen.blit(
+            text_surface,
+            (rect.x + (rect.width - text_surface.get_width()) // 2,
+            rect.y + (rect.height - text_surface.get_height()) // 2)
+        )
 
 
 estado_juego_inicial = {
@@ -215,53 +243,53 @@ def recenter_buttons():
     global buttons_main, buttons_options, buttons_sub
     # Main menu
     buttons_main = [
-        (center_rect(290, 200, 50), "Empezar", lambda: change_menu_display("submenu")),
-        (center_rect(420, 200, 50), "Opciones", lambda: change_menu_display("options")),
-        (center_rect(570, 200, 50), "Salir", lambda: exit_game()),
+        (center_rect(290, 224, 112), "Empezar", lambda: change_menu_display("submenu")),
+        (center_rect(440, 224, 112), "Opciones", lambda: change_menu_display("options")),
+        (center_rect(590, 224, 112), "Salir", lambda: exit_game()),
     ]
 
     # Options menu
     buttons_options = [
-        (center_rect(290, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
-        (center_rect(420, 200, 50), f"resolution: {resolutions_available[settings['resolution_index']]}", lambda: modify_settings(2)),
-        (center_rect(570, 200, 50), "Opcion3", lambda: print("opcion3")),
-        (center_rect(720, 200, 50), "Volver", lambda: change_menu_display("main")),
+        (center_rect(290, 224, 112), settings["display_mode"], lambda: modify_settings(1)),
+        (center_rect(440, 224, 112), f"resolution: {resolutions_available[settings['resolution_index']]}", lambda: modify_settings(2)),
+        (center_rect(590, 224, 112), "Opcion3", lambda: print("opcion3")),
+        (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
     ]
 
     # Submenu
     buttons_sub = [
-        (center_rect(290, 200, 50), lambda: get_state_game(1), ("load", 1)),
-        (center_rect(290, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
-        (center_rect(390, 200, 50), lambda: get_state_game(2), ("load", 2)),
-        (center_rect(390, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
-        (center_rect(490, 200, 50), lambda: get_state_game(3), ("load", 3)),
-        (center_rect(490, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
-        (center_rect(590, 200, 50), "Volver", lambda: change_menu_display("main")),
+        (center_rect(290, 224, 112), lambda: get_state_game(1), ("load", 1)),
+        (center_rect(290, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
+        (center_rect(440, 224, 112), lambda: get_state_game(2), ("load", 2)),
+        (center_rect(440, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
+        (center_rect(590, 224, 112), lambda: get_state_game(3), ("load", 3)),
+        (center_rect(590, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
+        (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
     ]
 
 
 buttons_main = [
-    (center_rect(290, 200, 50), "Empezar", lambda: change_menu_display("submenu")),
-    (center_rect(420, 200, 50), "Opciones", lambda: change_menu_display("options")),
-    (center_rect(570, 200, 50), "Salir", lambda: exit_game()),
+    (center_rect(290, 224, 112), "Empezar", lambda: change_menu_display("submenu")),
+    (center_rect(440, 224, 112), "Opciones", lambda: change_menu_display("options")),
+    (center_rect(590, 224, 112), "Salir", lambda: exit_game()),
 ]
 
 
 buttons_options = [
-    (center_rect(150, 200, 50), settings["display_mode"], lambda: modify_settings(1)),
-    (center_rect(290, 200, 50), f"resolution: {resolutions_available[settings['resolution_index']]}", lambda: modify_settings(2)),
-    (center_rect(420, 200, 50), "Opcion3", lambda: print("opcion3")),
-    (center_rect(560, 200, 50), "Volver", lambda: change_menu_display("main")),
+    (center_rect(290, 224, 112), settings["display_mode"], lambda: modify_settings(1)),
+    (center_rect(440, 224, 112), f"resolution: {resolutions_available[settings['resolution_index']]}", lambda: modify_settings(2)),
+    (center_rect(590, 224, 112), "Opcion3", lambda: print("opcion3")),
+    (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
 ]
 
 buttons_sub = [
-    (center_rect(290, 200, 50), lambda: get_state_game(1), ("load", 1)),
-    (center_rect(290, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
-    (center_rect(390, 200, 50), lambda: get_state_game(2), ("load", 2)),
-    (center_rect(390, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
-    (center_rect(490, 200, 50), lambda: get_state_game(3), ("load", 3)),
-    (center_rect(490, 200, 50).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
-    (center_rect(590, 200, 50), "Volver", lambda: change_menu_display("main")),
+    (center_rect(290, 224, 112), lambda: get_state_game(1), ("load", 1)),
+    (center_rect(290, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
+    (center_rect(440, 224, 112), lambda: get_state_game(2), ("load", 2)),
+    (center_rect(440, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
+    (center_rect(590, 224, 112), lambda: get_state_game(3), ("load", 3)),
+    (center_rect(590, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
+    (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
 ]
 
 def get_labels_sub():
@@ -274,13 +302,13 @@ def get_labels_sub():
 
 
 buttons_choose_dificulty = [
-    (center_rect(150, 200, 50), "Easy", ("create", 1)),
+    (center_rect(290, 224, 112), "Easy", ("create", 1)),
 
-    (center_rect(250, 200, 50), "Medium", ("create", 2)),
+    (center_rect(440, 224, 112), "Medium", ("create", 2)),
 
-    (center_rect(350, 200, 50), "Hard", ("create", 3)),
+    (center_rect(590, 224, 112), "Hard", ("create", 3)),
 
-    (center_rect(450, 200, 50), "Volver", lambda: change_menu_display("main"))
+    (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main"))
 ]
 
 
@@ -357,6 +385,5 @@ while running:
     screen.fill(WHITE)
     for rect, text, _ in botones:
         draw_button(screen, rect, text, FONT)
-
     pygame.display.flip()
     clock.tick(60)
