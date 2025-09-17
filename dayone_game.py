@@ -8,6 +8,7 @@ TILE_SIZE = ORIGINAL_TILE_SIZE * SCALE_FACTOR  # 64x64
 SOLID_TILES = [2]
 TILE_FOLDER = 'imagenes/tiles'
 MAP_FILE = 'map.txt'
+BUNKER = None
 
 inventory=[]
 
@@ -146,6 +147,18 @@ def draw_map(screen, tilemap, tiles, tile_size):
             if tile_id in tiles:
                 screen.blit(tiles[tile_id], (x * tile_size + offset_x, y * tile_size + offset_y))
 
+            if x == 17 and y == 6:
+                tile_center_x = x * tile_size + offset_x
+                tile_center_y = y * tile_size + offset_y
+
+    # Ajuste para centrar la imagen más grande
+                bunker_width, bunker_height = BUNKER.get_size()
+                draw_x = tile_center_x + (tile_size - bunker_width) // 2
+                draw_y = tile_center_y + (tile_size - bunker_height) // 2
+
+    screen.blit(BUNKER, (draw_x, draw_y))
+
+
 def draw_colliders(screen, tilemap):
     global collision_rects
 
@@ -164,7 +177,7 @@ def draw_colliders(screen, tilemap):
 
 
 def main(estado, screen1):
-    global screen
+    global screen, BUNKER
     screen = screen1
     global estado_juego
     estado_juego = estado
@@ -185,6 +198,8 @@ def main(estado, screen1):
     ROJO = (255, 0, 0)
 
     player = pygame.Rect(400, 300, 40, 40)
+    BUNKER = pygame.image.load("bunker.png").convert_alpha()
+    BUNKER = pygame.transform.scale(BUNKER, (96, 96))
 
     screen_w, screen_h = screen.get_size()
 
