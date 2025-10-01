@@ -259,11 +259,11 @@ def recenter_buttons():
     # Submenu
     buttons_sub = [
         (center_rect(290, 224, 112), lambda: get_state_game(1), ("load", 1)),
-        (center_rect(290, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
+        (center_rect(290, 126, 126).move(220, 0), "X", ("delete", 1)),
         (center_rect(440, 224, 112), lambda: get_state_game(2), ("load", 2)),
-        (center_rect(440, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
+        (center_rect(440, 126, 126).move(220, 0), "X", ("delete", 2)),
         (center_rect(590, 224, 112), lambda: get_state_game(3), ("load", 3)),
-        (center_rect(590, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
+        (center_rect(590, 126, 126).move(220, 0), "X", ("delete", 3)),
         (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
     ]
 
@@ -284,11 +284,11 @@ buttons_options = [
 
 buttons_sub = [
     (center_rect(290, 224, 112), lambda: get_state_game(1), ("load", 1)),
-    (center_rect(290, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 1)),
+    (center_rect(290, 126, 126).move(220, 0), "X", ("delete", 1)),
     (center_rect(440, 224, 112), lambda: get_state_game(2), ("load", 2)),
-    (center_rect(440, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 2)),
+    (center_rect(440, 126, 126).move(220, 0), "X", ("delete", 2)),
     (center_rect(590, 224, 112), lambda: get_state_game(3), ("load", 3)),
-    (center_rect(590, 126, 126).move(220, 0).inflate(-150, 0), "X", ("delete", 3)),
+    (center_rect(590, 126, 126).move(220, 0), "X", ("delete", 3)),
     (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
 ]
 
