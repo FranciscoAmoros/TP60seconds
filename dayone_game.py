@@ -8,6 +8,8 @@ TILE_SIZE = ORIGINAL_TILE_SIZE * SCALE_FACTOR  # 64x64
 SOLID_TILES = [2]
 TILE_FOLDER = 'imagenes/tiles'
 MAP_FILE = 'map.txt'
+BUNKER_IMG = None
+
 BUNKER = None
 
 inventory=[]
@@ -46,17 +48,32 @@ def get_random_posible_position(tilemap):
                 px = x * TILE_SIZE + offset_x
                 py = y * TILE_SIZE + offset_y
                 rect = pygame.Rect(px, py, 40, 40)
-                if not any(rect.colliderect(collider) for collider in collision_rects):
+
+                # Verificar si la posición está libre
+                is_valid_position = True
+
+                # Verificar colisión con los rectángulos de los colliders (si existen)
+                for collider in collision_rects:
+                    if rect.colliderect(collider):
+                        is_valid_position = False
+                        break  # Salir si se encuentra colisión
+
+                # Verificar si la posición choca con algún objeto
+                if is_valid_position:
                     for item in objects:
                         if item["rect"].colliderect(rect):
-                            break
+                            is_valid_position = False
+                            break  # Salir si se encuentra colisión con un objeto
+
+                # Si la posición es válida, agregarla a la lista
+                if is_valid_position:
                     valid_positions.append((px, py))
 
-    # Elegir una al azar
+    # Retornar una posición aleatoria válida si existe alguna
     if valid_positions:
         return random.choice(valid_positions)
-    else:
-        return 0, 0  # Fallback si no hay lugar
+    return None  # Si no hay posiciones válidas disponibles
+
 
 
 def get_objects(estado_juego, tilemap):
@@ -136,6 +153,9 @@ def load_map(filename):
 
 
 def draw_map(screen, tilemap, tiles, tile_size):
+
+    global BUNKER, BUNKER_IMG
+
     # Tamaño del mapa en píxeles
     map_width = len(tilemap[0]) * tile_size
     map_height = len(tilemap) * tile_size
@@ -158,11 +178,13 @@ def draw_map(screen, tilemap, tiles, tile_size):
                 tile_center_y = y * tile_size + offset_y
 
     # Ajuste para centrar la imagen más grande
-                bunker_width, bunker_height = BUNKER.get_size()
+                bunker_width, bunker_height = BUNKER_IMG.get_size()
                 draw_x = tile_center_x + (tile_size - bunker_width) // 2
                 draw_y = tile_center_y + (tile_size - bunker_height) // 2
 
-    screen.blit(BUNKER, (draw_x, draw_y))
+                BUNKER = pygame.Rect(draw_x, draw_y, bunker_width, bunker_height)
+
+    screen.blit(BUNKER_IMG, (draw_x, draw_y))
 
 
 def draw_colliders(screen, tilemap):
@@ -183,7 +205,7 @@ def draw_colliders(screen, tilemap):
 
 
 def main(estado, screen1):
-    global screen, BUNKER
+    global screen, BUNKER_IMG, BUNKER
     screen = screen1
     global estado_juego
     estado_juego = estado
@@ -204,8 +226,8 @@ def main(estado, screen1):
     ROJO = (255, 0, 0)
 
     player = pygame.Rect(550, 350, 16, 16)
-    BUNKER = pygame.image.load("bunker.png").convert_alpha()
-    BUNKER = pygame.transform.scale(BUNKER, (64, 64))
+    BUNKER_IMG = pygame.image.load("bunker.png").convert_alpha()
+    BUNKER_IMG = pygame.transform.scale(BUNKER_IMG, (64, 64))
 
     screen_w, screen_h = screen.get_size()
 
@@ -252,6 +274,14 @@ def main(estado, screen1):
             if player.colliderect(collider):
                 player.y -= dy
                 break
+        if BUNKER is not None:
+            if player.colliderect(BUNKER):
+                for item in inventory:
+                    if not item["type"] == "agua":
+                        estado_juego["objetos"][item["type"]][item["name"]][0] += 1 #agregar 1 a la cantidad del item
+                    else:
+                        estado_juego["objetos"][item["type"]][0] += 1 #agregar 1 a la cantidad del item
+                    inventory.remove(item) #remover item del inventario
 
         screen.fill(BLACK)
 
