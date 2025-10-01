@@ -329,6 +329,9 @@ def main(estado, screen1):
         else:
             done = True
 
+        if time_left <= 0:
+            done = True
+
         pygame.display.flip()
         clock.tick(60)
 
