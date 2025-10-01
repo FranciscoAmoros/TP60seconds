@@ -3,7 +3,7 @@ import pygame, random, os, datetime
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 ORIGINAL_TILE_SIZE = 32
-SCALE_FACTOR = 1.5
+SCALE_FACTOR = 1
 TILE_SIZE = ORIGINAL_TILE_SIZE * SCALE_FACTOR  # 64x64
 SOLID_TILES = [2]
 TILE_FOLDER = 'imagenes/tiles'
@@ -13,6 +13,8 @@ BUNKER = None
 inventory=[]
 
 OBJECTS = "imagenes_objs/"
+
+objects = []
 
 collision_rects = []
 
@@ -45,6 +47,9 @@ def get_random_posible_position(tilemap):
                 py = y * TILE_SIZE + offset_y
                 rect = pygame.Rect(px, py, 40, 40)
                 if not any(rect.colliderect(collider) for collider in collision_rects):
+                    for item in objects:
+                        if item["rect"].colliderect(rect):
+                            break
                     valid_positions.append((px, py))
 
     # Elegir una al azar
@@ -55,6 +60,7 @@ def get_random_posible_position(tilemap):
 
 
 def get_objects(estado_juego, tilemap):
+    global objects
     objects = []
 
     for _ in range(objects_quantity[estado_juego["dificultad"]]["comida"]):
@@ -197,9 +203,9 @@ def main(estado, screen1):
     NEGRO = (0, 0, 0)
     ROJO = (255, 0, 0)
 
-    player = pygame.Rect(400, 300, 40, 40)
+    player = pygame.Rect(550, 350, 16, 16)
     BUNKER = pygame.image.load("bunker.png").convert_alpha()
-    BUNKER = pygame.transform.scale(BUNKER, (96, 96))
+    BUNKER = pygame.transform.scale(BUNKER, (64, 64))
 
     screen_w, screen_h = screen.get_size()
 
