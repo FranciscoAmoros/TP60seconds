@@ -184,10 +184,15 @@ def delete_game(indice_partida):
 def start_game():
     global estado_juego
     global screen
-    estado_juego = game.start_game(estado_juego, screen)
-    if estado_juego["dia"] == 1:
-        save_game(indice_partida)
-        load_game(indice_partida, start_immediately=False)
+    if estado_juego["dia"] == 0:
+        estado_juego = game.start_game(estado_juego, screen)
+        change_menu_display("main")
+        estado_juego["dia"] = 1
+        if estado_juego["dia"] == 1:
+            save_game(indice_partida)
+            load_game(indice_partida, start_immediately=False)
+            estado_juego = game.start_game(estado_juego, screen)
+    else:
         estado_juego = game.start_game(estado_juego, screen)
 
 
