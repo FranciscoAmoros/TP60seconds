@@ -185,6 +185,10 @@ def start_game():
     global estado_juego
     global screen
     estado_juego = game.start_game(estado_juego, screen)
+    if estado_juego["dia"] == 1:
+        save_game(indice_partida)
+        load_game(indice_partida, start_immediately=False)
+        estado_juego = game.start_game(estado_juego, screen)
 
 
 def load_game(indice_partida, start_immediately=True):
