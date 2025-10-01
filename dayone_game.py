@@ -14,6 +14,8 @@ inventory=[]
 
 OBJECTS = "imagenes_objs/"
 
+objects = []
+
 collision_rects = []
 
 pygame.init()
@@ -45,6 +47,9 @@ def get_random_posible_position(tilemap):
                 py = y * TILE_SIZE + offset_y
                 rect = pygame.Rect(px, py, 40, 40)
                 if not any(rect.colliderect(collider) for collider in collision_rects):
+                    for item in objects:
+                        if item["rect"].colliderect(rect):
+                            break
                     valid_positions.append((px, py))
 
     # Elegir una al azar
@@ -55,6 +60,7 @@ def get_random_posible_position(tilemap):
 
 
 def get_objects(estado_juego, tilemap):
+    global objects
     objects = []
 
     for _ in range(objects_quantity[estado_juego["dificultad"]]["comida"]):
