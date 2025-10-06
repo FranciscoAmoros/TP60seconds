@@ -17,7 +17,8 @@ def start_game(estado, screen):
         estado_juego = dayone_game.main(estado_juego, screen)
         estado_juego["dia"] = 1
     else:
-        estado_juego = seconds_game.main(estado_juego, screen)
+        print("loading level")
+        #estado_juego = seconds_game.main(estado_juego, screen)
 
     return estado_juego
     
