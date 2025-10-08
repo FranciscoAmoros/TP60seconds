@@ -202,7 +202,14 @@ def draw_colliders(screen, tilemap):
                 rect = pygame.Rect(x * TILE_SIZE + offset_x, y * TILE_SIZE + offset_y, TILE_SIZE, TILE_SIZE)
                 collision_rects.append(rect)
             
+def is_in_right_zone(player_rect, tilemap):
+    col = int((player_rect.centerx - offset_x) // TILE_SIZE)
+    row = int((player_rect.centery - offset_y) // TILE_SIZE)
 
+    try:
+        return tilemap[row][col] == 1 and col >= 10
+    except IndexError:
+        return False
 
 def main(estado, screen1):
     global screen, BUNKER_IMG, BUNKER
@@ -321,6 +328,21 @@ def main(estado, screen1):
             img = pygame.transform.scale(item["image"], (inventory_box_size - 10, inventory_box_size - 10))
             img_rect = img.get_rect(center=rect.center)
             screen.blit(img, img_rect)
+
+        if teclas[pygame.K_q] and inventory:
+            if is_in_right_zone(player, tilemap):
+                item = inventory.pop(0)
+
+                drop_x = player.centerx - 20 
+                drop_y = player.centery - 20
+
+                new_rect = pygame.Rect(drop_x, drop_y, 40, 40)
+                item["rect"] = new_rect
+
+                objects.append(item)
+                print(f"Has dropeado: {item['name']}")
+            else:
+                print("Solo puedes dropear en la zona derecha")
 
         if time_left >= 0:
             text = font.render(str(time_left), True, (255, 255, 255))
