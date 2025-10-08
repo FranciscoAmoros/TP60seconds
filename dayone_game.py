@@ -2,6 +2,10 @@ import pygame, random, os, datetime
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+GRAY = (169, 169, 169)  # Gris
+
+pygame.init()
+
 ORIGINAL_TILE_SIZE = 32
 SCALE_FACTOR = 1
 TILE_SIZE = ORIGINAL_TILE_SIZE * SCALE_FACTOR  # 64x64
@@ -9,6 +13,9 @@ SOLID_TILES = [2]
 TILE_FOLDER = 'imagenes/tiles'
 MAP_FILE = 'map.txt'
 BUNKER_IMG = None
+
+font = pygame.font.SysFont(None, 72)
+text_font = pygame.font.SysFont(None, 36)  
 
 BUNKER = None
 
@@ -22,7 +29,6 @@ objects = []
 
 collision_rects = []
 
-pygame.init()
 
 estado_juego = {}
 
@@ -227,20 +233,24 @@ def get_player_tile_position(player, tilemap, tile_size, screen):
     player_tile_x = (player.x - offset_x) // tile_size
     player_tile_y = (player.y - offset_y) // tile_size
 
-    return player_tile_x, player_tile_y
+    return player_tile_x, player_tile_y, offset_x, offset_y
 
             
-def is_in_right_zone(player_rect, tilemap):
+def is_in_right_zone(player_rect, tilemap, offset_x, offset_y):
+
     col = int((player_rect.centerx - offset_x) // TILE_SIZE)
     row = int((player_rect.centery - offset_y) // TILE_SIZE)
+    
+    map_width = len(tilemap[0])  
+    map_height = len(tilemap)    
+    
+    if 0 <= col < map_width and 0 <= row < map_height:
+        return True
 
-    try:
-        return tilemap[row][col] == 1 and col >= 10
-    except IndexError:
-        return False
+    return False
 
 def main(estado, screen1):
-    global screen, BUNKER_IMG, BUNKER
+    global screen, BUNKER_IMG, BUNKER, font, text_font
     global player_pos
     screen = screen1
     global estado_juego
@@ -251,9 +261,9 @@ def main(estado, screen1):
     draw_colliders(screen, tilemap)
     objects = get_objects(estado_juego, tilemap)
     clock = pygame.time.Clock()
-
-    font = pygame.font.SysFont(None, 72)
     speed = 3
+
+    draw_label = False
 
     start_ticks = pygame.time.get_ticks()
     countdown_time = 60 
@@ -267,6 +277,9 @@ def main(estado, screen1):
     BUNKER_IMG = pygame.transform.scale(BUNKER_IMG, (64, 64))
 
     screen_w, screen_h = screen.get_size()
+
+    # Bandera para controlar la tecla Q
+    dropeado = False
 
     while not done:
         for event in pygame.event.get():
@@ -311,6 +324,7 @@ def main(estado, screen1):
             if player.colliderect(collider):
                 player.y -= dy
                 break
+
         if BUNKER is not None:
             if player.colliderect(BUNKER):
                 for item in inventory:
@@ -322,24 +336,31 @@ def main(estado, screen1):
 
         screen.fill(BLACK)
 
-        player_pos[0], player_pos[1] = get_player_tile_position(player, tilemap, TILE_SIZE, screen)
+        player_pos[0], player_pos[1], _, _ = get_player_tile_position(player, tilemap, TILE_SIZE, screen)
         draw_map(screen, tilemap, tiles, TILE_SIZE)
 
         seconds_passed = (pygame.time.get_ticks() - start_ticks) // 1000
         time_left = countdown_time - seconds_passed
         pygame.draw.rect(screen, ROJO, player)
+
         for obj in objects:
             obj_pos = [0, 0]
-            obj_pos[0], obj_pos[1] = get_player_tile_position(obj["rect"], tilemap, TILE_SIZE, screen)
+            obj_pos[0], obj_pos[1], _, _ = get_player_tile_position(obj["rect"], tilemap, TILE_SIZE, screen)
             if not obj_pos[0] in range(player_pos[0]-2, player_pos[0]+2) or not obj_pos[1] in range(player_pos[1]-2, player_pos[1]+2):
                 continue
             screen.blit(obj["image"], obj["rect"])
             if player.colliderect(obj["rect"]):
-                if not len(inventory) == 4:
-                    print(f"Has recogido: {obj['name']}")
-                    obj["value"] = obj["value"][0] + 1
-                    objects.remove(obj)
-                    inventory.append(obj)
+                draw_label = True
+                if teclas[pygame.K_e] and not dropeado:  # Solo si no se ha dropeado aún
+                    if not len(inventory) == 4:
+                        print(f"Has recogido: {obj['name']}")
+                        obj["value"][0] += 1
+                        objects.remove(obj)
+                        inventory.append(obj)
+                    dropeado = True  # Se marca como dropeado
+
+            else:
+                draw_label = False
 
         # DIBUJAR INVENTARIO
         inventory_box_size = 50  # Tamaño de cada recuadro
@@ -364,10 +385,15 @@ def main(estado, screen1):
             img_rect = img.get_rect(center=rect.center)
             screen.blit(img, img_rect)
 
-        if teclas[pygame.K_q] and inventory:
-            if is_in_right_zone(player, tilemap):
-                item = inventory.pop(0)
-
+        if teclas[pygame.K_q] and inventory and not dropeado:
+            player_pos[0], player_pos[1], offset_x, offset_y = get_player_tile_position(player, tilemap, TILE_SIZE, screen)
+            if is_in_right_zone(player, tilemap, offset_x, offset_y):
+                item = inventory.pop(-1)
+                if not item["type"] == "agua":
+                    estado_juego["objetos"][item["type"]][item["name"]][0] -= 1
+                else:
+                    estado_juego["objetos"][item["type"]][0] -= 1
+ 
                 drop_x = player.centerx - 20 
                 drop_y = player.centery - 20
 
@@ -376,8 +402,31 @@ def main(estado, screen1):
 
                 objects.append(item)
                 print(f"Has dropeado: {item['name']}")
-            else:
-                print("Solo puedes dropear en la zona derecha")
+                dropeado = True  # Marcar que se ha dropeado un objeto
+
+        if not teclas[pygame.K_q]:  # Si la tecla Q es soltada, se puede dropear de nuevo
+            dropeado = False
+
+        if draw_label:
+
+            text_surface = font.render("E", True, WHITE)
+
+            pick_up_text = text_font.render("Pick up", True, WHITE)
+
+            screen_width, screen_height = screen.get_size()
+
+            center_x = screen_width // 2
+            bottom_y = screen_height - 100
+
+            e_rect = text_surface.get_rect(center=(center_x, bottom_y))
+
+            gray_rect = pygame.Rect(e_rect.x - 10, e_rect.y - 10, e_rect.width + 20, e_rect.height + 20)
+            pygame.draw.rect(screen, GRAY, gray_rect)
+
+            screen.blit(text_surface, e_rect)
+
+            pick_up_rect = pick_up_text.get_rect(center=(e_rect.right + 50, e_rect.centery))
+            screen.blit(pick_up_text, pick_up_rect)
 
         if time_left >= 0:
             text = font.render(str(time_left), True, (255, 255, 255))
