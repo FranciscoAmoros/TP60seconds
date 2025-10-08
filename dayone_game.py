@@ -12,6 +12,8 @@ BUNKER_IMG = None
 
 BUNKER = None
 
+player_pos = [0, 0]
+
 inventory=[]
 
 OBJECTS = "imagenes_objs/"
@@ -156,6 +158,8 @@ def draw_map(screen, tilemap, tiles, tile_size):
 
     global BUNKER, BUNKER_IMG
 
+    can_spawn_bunker = False
+
     # Tamaño del mapa en píxeles
     map_width = len(tilemap[0]) * tile_size
     map_height = len(tilemap) * tile_size
@@ -171,9 +175,13 @@ def draw_map(screen, tilemap, tiles, tile_size):
     for y, row in enumerate(tilemap):
         for x, tile_id in enumerate(row):
             if tile_id in tiles:
-                screen.blit(tiles[tile_id], (x * tile_size + offset_x, y * tile_size + offset_y))
+                if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
+                    screen.blit(tiles[tile_id], (x * tile_size + offset_x, y * tile_size + offset_y))
 
             if x == 17 and y == 6:
+                if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
+                    can_spawn_bunker = True
+                
                 tile_center_x = x * tile_size + offset_x
                 tile_center_y = y * tile_size + offset_y
 
@@ -181,10 +189,12 @@ def draw_map(screen, tilemap, tiles, tile_size):
                 bunker_width, bunker_height = BUNKER_IMG.get_size()
                 draw_x = tile_center_x + (tile_size - bunker_width) // 2
                 draw_y = tile_center_y + (tile_size - bunker_height) // 2
+                
+                if can_spawn_bunker and BUNKER is None:
+                    BUNKER = pygame.Rect(draw_x, draw_y, bunker_width, bunker_height)
 
-                BUNKER = pygame.Rect(draw_x, draw_y, bunker_width, bunker_height)
-
-    screen.blit(BUNKER_IMG, (draw_x, draw_y))
+    if can_spawn_bunker and BUNKER is not None:
+        screen.blit(BUNKER_IMG, (draw_x, draw_y))
 
 
 def draw_colliders(screen, tilemap):
@@ -201,6 +211,24 @@ def draw_colliders(screen, tilemap):
             if tile_id in SOLID_TILES:
                 rect = pygame.Rect(x * TILE_SIZE + offset_x, y * TILE_SIZE + offset_y, TILE_SIZE, TILE_SIZE)
                 collision_rects.append(rect)
+
+
+def get_player_tile_position(player, tilemap, tile_size, screen):
+    # Tamaño de la ventana
+    screen_width, screen_height = screen.get_size()
+
+    # Calcular el offset para centrar el mapa
+    map_width = len(tilemap[0]) * tile_size
+    map_height = len(tilemap) * tile_size
+    offset_x = (screen_width - map_width) // 2
+    offset_y = (screen_height - map_height) // 2
+
+    # Convertir las coordenadas del jugador en píxeles a coordenadas de tiles
+    player_tile_x = (player.x - offset_x) // tile_size
+    player_tile_y = (player.y - offset_y) // tile_size
+
+    return player_tile_x, player_tile_y
+
             
 def is_in_right_zone(player_rect, tilemap):
     col = int((player_rect.centerx - offset_x) // TILE_SIZE)
@@ -213,6 +241,7 @@ def is_in_right_zone(player_rect, tilemap):
 
 def main(estado, screen1):
     global screen, BUNKER_IMG, BUNKER
+    global player_pos
     screen = screen1
     global estado_juego
     estado_juego = estado
@@ -224,7 +253,7 @@ def main(estado, screen1):
     clock = pygame.time.Clock()
 
     font = pygame.font.SysFont(None, 72)
-    speed = 5
+    speed = 3
 
     start_ticks = pygame.time.get_ticks()
     countdown_time = 60 
@@ -233,6 +262,7 @@ def main(estado, screen1):
     ROJO = (255, 0, 0)
 
     player = pygame.Rect(550, 350, 16, 16)
+
     BUNKER_IMG = pygame.image.load("bunker.png").convert_alpha()
     BUNKER_IMG = pygame.transform.scale(BUNKER_IMG, (64, 64))
 
@@ -292,12 +322,17 @@ def main(estado, screen1):
 
         screen.fill(BLACK)
 
+        player_pos[0], player_pos[1] = get_player_tile_position(player, tilemap, TILE_SIZE, screen)
         draw_map(screen, tilemap, tiles, TILE_SIZE)
 
         seconds_passed = (pygame.time.get_ticks() - start_ticks) // 1000
         time_left = countdown_time - seconds_passed
         pygame.draw.rect(screen, ROJO, player)
         for obj in objects:
+            obj_pos = [0, 0]
+            obj_pos[0], obj_pos[1] = get_player_tile_position(obj["rect"], tilemap, TILE_SIZE, screen)
+            if not obj_pos[0] in range(player_pos[0]-2, player_pos[0]+2) or not obj_pos[1] in range(player_pos[1]-2, player_pos[1]+2):
+                continue
             screen.blit(obj["image"], obj["rect"])
             if player.colliderect(obj["rect"]):
                 if not len(inventory) == 4:
@@ -349,6 +384,9 @@ def main(estado, screen1):
             text_rect = text.get_rect(center=(screen.get_width() // 2, 40))  
             screen.blit(text, text_rect)
         else:
+            done = True
+
+        if time_left <= 0:
             done = True
 
         pygame.display.flip()
