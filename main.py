@@ -1,7 +1,7 @@
 import pygame, os
 from time import sleep
 import json
-import game
+import dayone_game, seconds_game
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -23,20 +23,17 @@ resolutions_available = [
     (1920, 1080)
 ]
 
+current_display = "main"
+
 
 settings = {}
 ruta_settings = os.path.join(ruta_actual, "settings")
 os.makedirs(ruta_settings, exist_ok=True)
 
-submenu_active = False
-options_menu_active = False
-dificulty_menu_active = False
 
-def change_menu_display(menu_type):
-    global submenu_active, options_menu_active, dificulty_menu_active
-    submenu_active = (menu_type == "submenu")
-    options_menu_active = (menu_type == "options")
-    dificulty_menu_active = (menu_type == "dificulty")
+def change_menu_display(display):
+    global current_display
+    current_display = display
 
 
 def load_settings():
@@ -123,6 +120,9 @@ screen_width, screen_high = screen.get_size()
 pygame.display.flip()
 clock = pygame.time.Clock()
 
+fondo_menu = pygame.image.load("fondomenu.jpg")
+fondo_menu = pygame.transform.scale(fondo_menu, (screen_width, screen_high))
+
 
 ruta_saves = os.path.join(ruta_actual, "saves")
 os.makedirs(ruta_saves, exist_ok=True)
@@ -169,7 +169,7 @@ estado_juego_inicial = {
 }
 
 estado_juego = {}
-indice_partida = 1
+
 
 def delete_game(indice_partida):
 
@@ -181,50 +181,74 @@ def delete_game(indice_partida):
 
     estado_juego = {}
 
-def start_game():
+def clear_levels_60unfinished():
+    archivos = os.listdir(ruta_saves)
+    
+    for archivo_nombre in archivos:
+        ruta_completa = os.path.join(ruta_saves, archivo_nombre)
+        if os.path.isfile(ruta_completa):
+            # Abrimos y leemos el archivo
+            with open(ruta_completa, "r") as f:
+                contenido = json.load(f)
+            
+            # Si "dia" es 0, borramos la partida
+            if contenido.get("dia", 1) == 0:
+                # Extraemos el índice completo del nombre del archivo
+                # Suponiendo que el nombre es "partidaX.json"
+                indice_str = ''.join(c for c in archivo_nombre if c.isdigit())
+                if indice_str:
+                    indice = int(indice_str)
+                    delete_game(indice)
+
+
+clear_levels_60unfinished()
+
+def start_game(indice_partida):
     global estado_juego
     global screen
     if estado_juego["dia"] == 0:
-        estado_juego = game.start_game(estado_juego, screen)
+        estado_juego = dayone_game.main(estado_juego, screen)
         change_menu_display("main")
         estado_juego["dia"] = 1
         if estado_juego["dia"] == 1:
             save_game(indice_partida)
             load_game(indice_partida, start_immediately=False)
-            estado_juego = game.start_game(estado_juego, screen)
+            estado_juego = seconds_game.main(estado_juego, screen)
     else:
-        estado_juego = game.start_game(estado_juego, screen)
+        estado_juego = seconds_game.main(estado_juego, screen)
 
 
 def load_game(indice_partida, start_immediately=True):
     global screen
     global estado_juego
+    global aux_indice
     partida_root = os.path.join(ruta_saves, f"partida{indice_partida}.json")
 
     if os.path.exists(partida_root):
         with open(partida_root, "r") as archivo:
             estado_juego = json.load(archivo)
         if start_immediately:
-            start_game()
+            start_game(indice_partida)
     else:
         change_menu_display("dificulty")
+        aux_indice = indice_partida
 
-def get_state_game(indice):
-    partida_root = os.path.join(ruta_saves, f"partida{indice}.json")
+def get_state_game(indice_partida):
+    partida_root = os.path.join(ruta_saves, f"partida{indice_partida}.json")
     if os.path.exists(partida_root):
-        return f"Game {indice}"
+        return f"Game {indice_partida}"
     else:
         return "New Game"
     
-def get_dificulty_game(indice):
-    partida_root = os.path.join(ruta_saves, f"partida{indice}.json")
+def get_dificulty_game(indice_partida):
+    partida_root = os.path.join(ruta_saves, f"partida{indice_partida}.json")
     if os.path.exists(partida_root):
         try:
             with open(partida_root, "r") as archivo:
                 estado = json.load(archivo)
             return estado.get("dificultad", "Desconocida")
         except Exception as e:
-            print(f"[ERROR] No se pudo leer partida {indice}: {e}")
+            print(f"[ERROR] No se pudo leer partida {indice_partida}: {e}")
             return "Error"
     else:
         return "N/A"
@@ -245,11 +269,11 @@ def exit_game():
 
 def center_rect(y, w, h):
     """Devuelve un Rect centrado horizontalmente en la pantalla"""
-    return pygame.Rect((screen_width - w) // 2, y, w, h)
+    return pygame.Rect((screen_width - w) // 2 - 450, y, w, h)
 
 
 def recenter_buttons():
-    global buttons_main, buttons_options, buttons_sub
+    global buttons_main, buttons_options, buttons_sub, buttons_choose_dificulty
     # Main menu
     buttons_main = [
         (center_rect(290, 224, 112), "Empezar", lambda: change_menu_display("submenu")),
@@ -274,6 +298,16 @@ def recenter_buttons():
         (center_rect(590, 224, 112), lambda: get_state_game(3), ("load", 3)),
         (center_rect(590, 126, 126).move(220, 0), "X", ("delete", 3)),
         (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
+    ]
+
+    buttons_choose_dificulty = [
+        (center_rect(290, 224, 112), "Easy", ("create", 1)),
+
+        (center_rect(440, 224, 112), "Medium", ("create", 2)),
+
+        (center_rect(590, 224, 112), "Hard", ("create", 3)),
+
+        (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main"))
     ]
 
 
@@ -311,11 +345,11 @@ def get_labels_sub():
 
 
 buttons_choose_dificulty = [
-    (center_rect(290, 224, 112), "Easy", ("create", 1)),
+    (center_rect(290, 224, 112), "Easy", None),
 
-    (center_rect(440, 224, 112), "Medium", ("create", 2)),
+    (center_rect(440, 224, 112), "Medium", None),
 
-    (center_rect(590, 224, 112), "Hard", ("create", 3)),
+    (center_rect(590, 224, 112), "Hard", None),
 
     (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main"))
 ]
@@ -325,6 +359,8 @@ buttons_choose_dificulty = [
 
 running = True
 
+aux_indice = 1
+
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -333,7 +369,7 @@ while running:
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = pygame.mouse.get_pos()
 
-            if submenu_active:
+            if current_display == "submenu":
                 for rect, text, action in buttons_sub:
                     if rect.collidepoint(pos):
                         if callable(action):
@@ -343,32 +379,33 @@ while running:
                             tipo, indice = action
                             if tipo == "delete":
                                 delete_game(indice)
+
                                 recenter_buttons()
                             elif tipo == "load":
                                 load_game(indice)
+
                             else:
                                 change_menu_display("main")
                                 recenter_buttons()
 
-            elif options_menu_active:
+            elif current_display == "options":
                 for rect, text, action in buttons_options:
                     if rect.collidepoint(pos):
                         action()
                         recenter_buttons()
 
-            elif dificulty_menu_active:
+            elif current_display == "dificulty":
                 for rect, text, action in buttons_choose_dificulty:
                     if rect.collidepoint(pos):
                         if callable(action):
                             action()
                             recenter_buttons()
                         else:
-                            tipo, indice = action
-                            if tipo == "create":
-                                estado_juego = estado_juego_inicial.copy()
-                                estado_juego["dificultad"] = text  # "Easy", "Medium", "Hard"
-                                save_game(indice)
-                                load_game(indice)
+                            estado_juego = estado_juego_inicial.copy()
+                            estado_juego["dificultad"] = text  # "Easy", "Medium", "Hard"
+
+                            save_game(aux_indice)
+                            load_game(aux_indice)
 
             else:  # main menu
                 for rect, text, action in buttons_main:
@@ -378,20 +415,20 @@ while running:
 
 
     # Dibujar botones del menú activo
-    if submenu_active:
+    if current_display == "submenu":
         botones = buttons_sub
-    elif options_menu_active:
+    elif current_display == "options":
         botones = buttons_options
-    elif dificulty_menu_active:
+    elif current_display == "dificulty":
         botones = buttons_choose_dificulty
     else:
         botones = buttons_main
 
-    if submenu_active:
+    if current_display == "submenu":
         for label_surface, position in get_labels_sub():
             screen.blit(label_surface, position)
 
-    screen.fill(WHITE)
+    screen.blit(fondo_menu, (0, 0))
     for rect, text, _ in botones:
         draw_button(screen, rect, text, FONT)
     pygame.display.flip()
