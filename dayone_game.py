@@ -143,10 +143,8 @@ def load_tiles(folder):
             tile_id = int(filename.split('.')[0])
             path = os.path.join(folder, filename)
             
-            # Cargar la imagen con transparencia
             image = pygame.image.load(path).convert_alpha()
 
-            # Escalar a 64x64
             image = pygame.transform.scale(image, (TILE_SIZE, TILE_SIZE))
 
             tiles[tile_id] = image
@@ -157,7 +155,16 @@ def load_tiles(folder):
 def load_map(filename):
     with open(filename, 'r') as f:
         lines = f.readlines()
-    return [[int(cell) for cell in line.strip().split(',')] for line in lines]
+
+    mapa = []
+    for line in lines:
+        line = line.strip()            
+        celdas = line.split(',')     
+        fila = [int(cell) for cell in celdas]  
+        mapa.append(fila)
+
+    return mapa
+
 
 
 def draw_map(screen, tilemap, tiles, tile_size):
@@ -166,14 +173,11 @@ def draw_map(screen, tilemap, tiles, tile_size):
 
     can_spawn_bunker = False
 
-    # Tamaño del mapa en píxeles
     map_width = len(tilemap[0]) * tile_size
     map_height = len(tilemap) * tile_size
 
-    # Tamaño de la ventana
     screen_width, screen_height = screen.get_size()
 
-    # Calcular offset para centrar
     offset_x = (screen_width - map_width) // 2
     offset_y = (screen_height - map_height) // 2
 
@@ -181,12 +185,12 @@ def draw_map(screen, tilemap, tiles, tile_size):
     for y, row in enumerate(tilemap):
         for x, tile_id in enumerate(row):
             if tile_id in tiles:
-                if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
-                    screen.blit(tiles[tile_id], (x * tile_size + offset_x, y * tile_size + offset_y))
+                #if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
+                screen.blit(tiles[tile_id], (x * tile_size + offset_x, y * tile_size + offset_y))
 
-            if x == 17 and y == 6:
-                if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
-                    can_spawn_bunker = True
+            #if x == 17 and y == 6:
+                #if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
+                can_spawn_bunker = True
                 
                 tile_center_x = x * tile_size + offset_x
                 tile_center_y = y * tile_size + offset_y
