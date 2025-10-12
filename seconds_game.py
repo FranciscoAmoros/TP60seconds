@@ -2,7 +2,7 @@
 
 estado_juego = {}
 
-def main(estado):
+def main(estado, screen):
     global estado_juego
     estado_juego = estado
 
