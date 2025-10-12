@@ -436,6 +436,7 @@ def main(estado, screen1):
             done = True
 
         if time_left <= 0:
+            estado_juego["dia"] = 1
             done = True
 
         pygame.display.flip()
