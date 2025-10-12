@@ -354,7 +354,7 @@ def main(estado, screen1):
                 if teclas[pygame.K_e] and not dropeado:  # Solo si no se ha dropeado aún
                     if not len(inventory) == 4:
                         print(f"Has recogido: {obj['name']}")
-                        obj["value"][0] += 1
+                        obj["value"] += 1
                         objects.remove(obj)
                         inventory.append(obj)
                     dropeado = True  # Se marca como dropeado
@@ -390,9 +390,9 @@ def main(estado, screen1):
             if is_in_right_zone(player, tilemap, offset_x, offset_y):
                 item = inventory.pop(-1)
                 if not item["type"] == "agua":
-                    estado_juego["objetos"][item["type"]][item["name"]][0] -= 1
+                    estado_juego["objetos"][item["type"]][item["name"]] -= 1
                 else:
-                    estado_juego["objetos"][item["type"]][0] -= 1
+                    estado_juego["objetos"][item["type"]] -= 1
  
                 drop_x = player.centerx - 20 
                 drop_y = player.centery - 20
