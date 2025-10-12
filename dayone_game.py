@@ -329,9 +329,9 @@ def main(estado, screen1):
             if player.colliderect(BUNKER):
                 for item in inventory:
                     if not item["type"] == "agua":
-                        estado_juego["objetos"][item["type"]][item["name"]][0] += 1 #agregar 1 a la cantidad del item
+                        estado_juego["objetos"][item["type"]][item["name"]] += 1 #agregar 1 a la cantidad del item
                     else:
-                        estado_juego["objetos"][item["type"]][0] += 1 #agregar 1 a la cantidad del item
+                        estado_juego["objetos"][item["type"]] += 1 #agregar 1 a la cantidad del item
                     inventory.remove(item) #remover item del inventario
 
         screen.fill(BLACK)
