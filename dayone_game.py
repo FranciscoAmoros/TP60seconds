@@ -15,7 +15,9 @@ MAP_FILE = 'map.txt'
 BUNKER_IMG = None
 
 font = pygame.font.SysFont(None, 72)
-text_font = pygame.font.SysFont(None, 36)  
+text_font = pygame.font.SysFont(None, 36)
+
+draw_label = False
 
 BUNKER = None
 
@@ -254,6 +256,7 @@ def is_in_right_zone(player_rect, tilemap, offset_x, offset_y):
     return False
 
 def main(estado, screen1):
+    global draw_label
     global screen, BUNKER_IMG, BUNKER, font, text_font
     global player_pos
     screen = screen1
@@ -267,7 +270,6 @@ def main(estado, screen1):
     clock = pygame.time.Clock()
     speed = 3
 
-    draw_label = False
 
     start_ticks = pygame.time.get_ticks()
     countdown_time = 60 
@@ -347,6 +349,8 @@ def main(estado, screen1):
         time_left = countdown_time - seconds_passed
         pygame.draw.rect(screen, ROJO, player)
 
+        show_label = False  
+
         for obj in objects:
             obj_pos = [0, 0]
             obj_pos[0], obj_pos[1], _, _ = get_player_tile_position(obj["rect"], tilemap, TILE_SIZE, screen)
@@ -354,7 +358,7 @@ def main(estado, screen1):
                 continue
             screen.blit(obj["image"], obj["rect"])
             if player.colliderect(obj["rect"]):
-                draw_label = True
+                show_label = True
                 if teclas[pygame.K_e] and not dropeado:  # Solo si no se ha dropeado aún
                     if not len(inventory) == 4:
                         print(f"Has recogido: {obj['name']}")
@@ -363,8 +367,7 @@ def main(estado, screen1):
                         inventory.append(obj)
                     dropeado = True  # Se marca como dropeado
 
-            else:
-                draw_label = False
+        draw_label = show_label  
 
         # DIBUJAR INVENTARIO
         inventory_box_size = 50  # Tamaño de cada recuadro
@@ -407,6 +410,8 @@ def main(estado, screen1):
                 objects.append(item)
                 print(f"Has dropeado: {item['name']}")
                 dropeado = True  # Marcar que se ha dropeado un objeto
+
+                draw_label = True
 
         if not teclas[pygame.K_q]:  # Si la tecla Q es soltada, se puede dropear de nuevo
             dropeado = False
