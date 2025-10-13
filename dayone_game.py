@@ -185,12 +185,12 @@ def draw_map(screen, tilemap, tiles, tile_size):
     for y, row in enumerate(tilemap):
         for x, tile_id in enumerate(row):
             if tile_id in tiles:
-                #if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
-                screen.blit(tiles[tile_id], (x * tile_size + offset_x, y * tile_size + offset_y))
+                if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
+                    screen.blit(tiles[tile_id], (x * tile_size + offset_x, y * tile_size + offset_y))
 
-            #if x == 17 and y == 6:
-                #if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
-                can_spawn_bunker = True
+            if x == 17 and y == 6:
+                if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
+                    can_spawn_bunker = True
                 
                 tile_center_x = x * tile_size + offset_x
                 tile_center_y = y * tile_size + offset_y
