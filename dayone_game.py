@@ -14,6 +14,8 @@ TILE_FOLDER = 'imagenes/tiles'
 MAP_FILE = 'map.txt'
 BUNKER_IMG = None
 
+espacio_vision = 3
+
 font = pygame.font.SysFont(None, 72)
 text_font = pygame.font.SysFont(None, 36)
 
@@ -171,6 +173,8 @@ def load_map(filename):
 
 def draw_map(screen, tilemap, tiles, tile_size):
 
+    global espacio_vision
+
     global BUNKER, BUNKER_IMG
 
     can_spawn_bunker = False
@@ -187,11 +191,11 @@ def draw_map(screen, tilemap, tiles, tile_size):
     for y, row in enumerate(tilemap):
         for x, tile_id in enumerate(row):
             if tile_id in tiles:
-                if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
+                if player_pos[0] in range(x-espacio_vision, x+espacio_vision) and player_pos[1] in range(y-espacio_vision, y+espacio_vision):
                     screen.blit(tiles[tile_id], (x * tile_size + offset_x, y * tile_size + offset_y))
 
             if x == 17 and y == 6:
-                if player_pos[0] in range(x-2, x+2) and player_pos[1] in range(y-2, y+2):
+                if player_pos[0] in range(x-espacio_vision, x+espacio_vision) and player_pos[1] in range(y-espacio_vision, y+espacio_vision):
                     can_spawn_bunker = True
                 
                 tile_center_x = x * tile_size + offset_x
@@ -256,6 +260,7 @@ def is_in_right_zone(player_rect, tilemap, offset_x, offset_y):
     return False
 
 def main(estado, screen1):
+    global espacio_vision
     global draw_label
     global screen, BUNKER_IMG, BUNKER, font, text_font
     global player_pos
@@ -349,12 +354,19 @@ def main(estado, screen1):
         time_left = countdown_time - seconds_passed
         pygame.draw.rect(screen, ROJO, player)
 
-        show_label = False  
+        show_label = False
+
+        if estado_juego["dificultad"] == "Easy":
+            espacio_vision = 4
+        elif estado_juego["dificultad"] == "Medium":
+            espacio_vision = 3
+        else:
+            espacio_vision = 2
 
         for obj in objects:
             obj_pos = [0, 0]
             obj_pos[0], obj_pos[1], _, _ = get_player_tile_position(obj["rect"], tilemap, TILE_SIZE, screen)
-            if not obj_pos[0] in range(player_pos[0]-2, player_pos[0]+2) or not obj_pos[1] in range(player_pos[1]-2, player_pos[1]+2):
+            if not obj_pos[0] in range(player_pos[0]-espacio_vision, player_pos[0]+espacio_vision) or not obj_pos[1] in range(player_pos[1]-espacio_vision, player_pos[1]+espacio_vision):
                 continue
             screen.blit(obj["image"], obj["rect"])
             if player.colliderect(obj["rect"]):
