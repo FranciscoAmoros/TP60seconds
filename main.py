@@ -268,20 +268,17 @@ def exit_game():
 
 
 def center_rect(y, w, h):
-    """Devuelve un Rect centrado horizontalmente en la pantalla"""
     return pygame.Rect((screen_width - w) // 2 - 450, y, w, h)
 
 
 def recenter_buttons():
     global buttons_main, buttons_options, buttons_sub, buttons_choose_dificulty
-    # Main menu
     buttons_main = [
         (center_rect(290, 224, 112), "Empezar", lambda: change_menu_display("submenu")),
         (center_rect(440, 224, 112), "Opciones", lambda: change_menu_display("options")),
         (center_rect(590, 224, 112), "Salir", lambda: exit_game()),
     ]
 
-    # Options menu
     buttons_options = [
         (center_rect(290, 224, 112), settings["display_mode"], lambda: modify_settings(1)),
         (center_rect(440, 224, 112), f"resolution: {resolutions_available[settings['resolution_index']]}", lambda: modify_settings(2)),
@@ -289,7 +286,6 @@ def recenter_buttons():
         (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
     ]
 
-    # Submenu
     buttons_sub = [
         (center_rect(290, 224, 112), lambda: get_state_game(1), ("load", 1)),
         (center_rect(290, 126, 126).move(220, 0), "X", ("delete", 1)),
@@ -402,7 +398,7 @@ while running:
                             recenter_buttons()
                         else:
                             estado_juego = estado_juego_inicial.copy()
-                            estado_juego["dificultad"] = text  # "Easy", "Medium", "Hard"
+                            estado_juego["dificultad"] = text  
 
                             save_game(aux_indice)
                             load_game(aux_indice)
