@@ -11,8 +11,9 @@ FUENTE = pygame.font.SysFont("arial", 36)
 ruta_actual = os.path.dirname(__file__)
 
 settings_default = {
-    "display_mode": "windowed",
-    "resolution_index": 2
+    "display_mode": "fullscreen",
+    "resolution_index": 2,
+    "brightness": 100  # porcentaje (50-150)
 }
 
 resolutions_available = [
@@ -48,6 +49,22 @@ def load_settings():
         settings = settings_default.copy()
         with open(settings_root, "w") as archivo:
             json.dump(settings, archivo, indent=4)
+    # Migración/normalización de brillo: aceptar antiguo rango [-100..100] como offset
+    b = settings.get("brightness")
+    if b is None:
+        settings["brightness"] = 100
+    else:
+        try:
+            if 50 <= b <= 150:
+                pass
+            elif -100 <= b <= 100:
+                settings["brightness"] = max(50, min(150, 100 + int(b)))
+            else:
+                settings["brightness"] = 100
+        except Exception:
+            settings["brightness"] = 100
+    with open(settings_root, "w") as archivo:
+        json.dump(settings, archivo, indent=4)
     update_config()
 
 def update_config():
@@ -66,6 +83,14 @@ def update_config():
         screen = pygame.display.set_mode(resolution)
 
     screen_width, screen_high = screen.get_size()
+    # Si existen recursos/UI dependientes de resolución, actualizarlos
+    try:
+        if 'rescale_assets' in globals():
+            rescale_assets()
+        if 'recenter_buttons' in globals():
+            recenter_buttons()
+    except Exception:
+        pass
 
 
 def save_settings():
@@ -120,8 +145,14 @@ screen_width, screen_high = screen.get_size()
 pygame.display.flip()
 clock = pygame.time.Clock()
 
-fondo_menu = pygame.image.load("fondomenu.jpg")
-fondo_menu = pygame.transform.scale(fondo_menu, (screen_width, screen_high))
+fondo_menu_raw = pygame.image.load(os.path.join(ruta_actual, "fondomenu.jpg"))
+fondo_menu = pygame.transform.scale(fondo_menu_raw, (screen_width, screen_high))
+def rescale_assets():
+    global fondo_menu
+    try:
+        fondo_menu = pygame.transform.scale(fondo_menu_raw, (screen_width, screen_high))
+    except Exception:
+        pass
 
 
 ruta_saves = os.path.join(ruta_actual, "saves")
@@ -268,87 +299,106 @@ def exit_game():
 
 
 def center_rect(y, w, h):
-    return pygame.Rect((screen_width - w) // 2 - 450, y, w, h)
+    return pygame.Rect((screen_width - w) // 2, y, w, h)
 
+
+def clamp(val, lo, hi):
+    return max(lo, min(hi, val))
+
+
+def change_brightness(delta):
+    global settings
+    # Ajuste en pasos del 25% con límites 50%-150%
+    current = settings.get("brightness", 100)
+    settings["brightness"] = clamp(current + delta, 50, 150)
+    save_settings()
+    load_settings()
+    try:
+        rescale_assets()
+        recenter_buttons()
+    except Exception:
+        pass
+    try:
+        rescale_assets()
+    except Exception:
+        pass
 
 def recenter_buttons():
     global buttons_main, buttons_options, buttons_sub, buttons_choose_dificulty
+
+    btn_w, btn_h = botones_images_escalados["blue"].get_size()
+    small_w, small_h = botones_images_escalados["x"].get_size()
+
+    gap = max(16, int(screen_high * 0.04))
+
+    # Main menu
+    n_main = 3
+    total_h_main = n_main * btn_h + (n_main - 1) * gap
+    start_y_main = (screen_high - total_h_main) // 2
     buttons_main = [
-        (center_rect(290, 224, 112), "Empezar", lambda: change_menu_display("submenu")),
-        (center_rect(440, 224, 112), "Opciones", lambda: change_menu_display("options")),
-        (center_rect(590, 224, 112), "Salir", lambda: exit_game()),
+        (center_rect(start_y_main + (btn_h + gap) * 0, btn_w, btn_h), "Empezar", lambda: change_menu_display("submenu")),
+        (center_rect(start_y_main + (btn_h + gap) * 1, btn_w, btn_h), "Opciones", lambda: change_menu_display("options")),
+        (center_rect(start_y_main + (btn_h + gap) * 2, btn_w, btn_h), "Salir", lambda: exit_game()),
     ]
 
+    # Opciones con brillo
+    opt_text_res = f"resolution: {resolutions_available[settings['resolution_index']]}"
+    opt_text_mode = settings.get("display_mode", "windowed")
+    opt_text_brightness = f"Brillo: {settings.get('brightness', 100)}%"
+
+    n_opt = 6
+    total_h_opt = n_opt * btn_h + (n_opt - 1) * gap
+    start_y_opt = (screen_high - total_h_opt) // 2
     buttons_options = [
-        (center_rect(290, 224, 112), settings["display_mode"], lambda: modify_settings(1)),
-        (center_rect(440, 224, 112), f"resolution: {resolutions_available[settings['resolution_index']]}", lambda: modify_settings(2)),
-        (center_rect(590, 224, 112), "Opcion3", lambda: print("opcion3")),
-        (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
+        (center_rect(start_y_opt + (btn_h + gap) * 0, btn_w, btn_h), opt_text_mode, lambda: modify_settings(1)),
+        (center_rect(start_y_opt + (btn_h + gap) * 1, btn_w, btn_h), opt_text_res, lambda: modify_settings(2)),
+        (center_rect(start_y_opt + (btn_h + gap) * 2, btn_w, btn_h), "Brillo -", lambda: change_brightness(-25)),
+        (center_rect(start_y_opt + (btn_h + gap) * 3, btn_w, btn_h), "Brillo +", lambda: change_brightness(+25)),
+        (center_rect(start_y_opt + (btn_h + gap) * 4, btn_w, btn_h), opt_text_brightness, lambda: None),
+        (center_rect(start_y_opt + (btn_h + gap) * 5, btn_w, btn_h), "Volver", lambda: change_menu_display("main")),
     ]
 
-    buttons_sub = [
-        (center_rect(290, 224, 112), lambda: get_state_game(1), ("load", 1)),
-        (center_rect(290, 126, 126).move(220, 0), "X", ("delete", 1)),
-        (center_rect(440, 224, 112), lambda: get_state_game(2), ("load", 2)),
-        (center_rect(440, 126, 126).move(220, 0), "X", ("delete", 2)),
-        (center_rect(590, 224, 112), lambda: get_state_game(3), ("load", 3)),
-        (center_rect(590, 126, 126).move(220, 0), "X", ("delete", 3)),
-        (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
-    ]
+    # Submenú partidas
+    n_sub_rows = 3
+    total_h_sub = n_sub_rows * btn_h + (n_sub_rows - 1) * gap
+    start_y_sub = (screen_high - total_h_sub) // 2
+    buttons_sub = []
+    for i in range(3):
+        y = start_y_sub + (btn_h + gap) * i
+        load_btn = (center_rect(y, btn_w, btn_h), (lambda idx=i+1: (lambda: get_state_game(idx)))(), ("load", i+1))
+        load_rect = load_btn[0]
+        x_rect = pygame.Rect(load_rect.x + btn_w + 20, load_rect.y + (btn_h - small_h)//2, small_w, small_h)
+        x_btn = (x_rect, "X", ("delete", i+1))
+        buttons_sub.extend([load_btn, x_btn])
+    buttons_sub.append((center_rect(start_y_sub + (btn_h + gap) * 3, btn_w, btn_h), "Volver", lambda: change_menu_display("main")))
 
+    # Elegir dificultad
+    n_diff = 4
+    total_h_diff = n_diff * btn_h + (n_diff - 1) * gap
+    start_y_diff = (screen_high - total_h_diff) // 2
     buttons_choose_dificulty = [
-        (center_rect(290, 224, 112), "Easy", ("create", 1)),
-
-        (center_rect(440, 224, 112), "Medium", ("create", 2)),
-
-        (center_rect(590, 224, 112), "Hard", ("create", 3)),
-
-        (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main"))
+        (center_rect(start_y_diff + (btn_h + gap) * 0, btn_w, btn_h), "Easy", ("create", 1)),
+        (center_rect(start_y_diff + (btn_h + gap) * 1, btn_w, btn_h), "Medium", ("create", 2)),
+        (center_rect(start_y_diff + (btn_h + gap) * 2, btn_w, btn_h), "Hard", ("create", 3)),
+        (center_rect(start_y_diff + (btn_h + gap) * 3, btn_w, btn_h), "Volver", lambda: change_menu_display("main"))
     ]
 
-
-buttons_main = [
-    (center_rect(290, 224, 112), "Empezar", lambda: change_menu_display("submenu")),
-    (center_rect(440, 224, 112), "Opciones", lambda: change_menu_display("options")),
-    (center_rect(590, 224, 112), "Salir", lambda: exit_game()),
-]
-
-
-buttons_options = [
-    (center_rect(290, 224, 112), settings["display_mode"], lambda: modify_settings(1)),
-    (center_rect(440, 224, 112), f"resolution: {resolutions_available[settings['resolution_index']]}", lambda: modify_settings(2)),
-    (center_rect(590, 224, 112), "Opcion3", lambda: print("opcion3")),
-    (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
-]
-
-buttons_sub = [
-    (center_rect(290, 224, 112), lambda: get_state_game(1), ("load", 1)),
-    (center_rect(290, 126, 126).move(220, 0), "X", ("delete", 1)),
-    (center_rect(440, 224, 112), lambda: get_state_game(2), ("load", 2)),
-    (center_rect(440, 126, 126).move(220, 0), "X", ("delete", 2)),
-    (center_rect(590, 224, 112), lambda: get_state_game(3), ("load", 3)),
-    (center_rect(590, 126, 126).move(220, 0), "X", ("delete", 3)),
-    (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main")),
-]
 
 def get_labels_sub():
-    return [
-        (FONT.render(get_dificulty_game(1), True, BLACK), (160, 260)),
-        (FONT.render(get_dificulty_game(2), True, BLACK), (260, 260)),
-        (FONT.render(get_dificulty_game(3), True, BLACK), (360, 260)),
-    ]
+    labels = []
+    try:
+        slot_rects = [buttons_sub[0][0], buttons_sub[2][0], buttons_sub[4][0]]
+        for i, rect in enumerate(slot_rects, start=1):
+            surf = FONT.render(get_dificulty_game(i), True, BLACK)
+            pos = (rect.centerx - surf.get_width() // 2, rect.bottom + 10)
+            labels.append((surf, pos))
+    except Exception:
+        pass
+    return labels
 
 
-
-buttons_choose_dificulty = [
-    (center_rect(290, 224, 112), "Easy", None),
-
-    (center_rect(440, 224, 112), "Medium", None),
-
-    (center_rect(590, 224, 112), "Hard", None),
-
-    (center_rect(740, 224, 112), "Volver", lambda: change_menu_display("main"))
-]
+# Inicializar botones centrados
+recenter_buttons()
 
 
             
@@ -420,12 +470,23 @@ while running:
     else:
         botones = buttons_main
 
+    screen.blit(fondo_menu, (0, 0))
     if current_display == "submenu":
         for label_surface, position in get_labels_sub():
             screen.blit(label_surface, position)
-
-    screen.blit(fondo_menu, (0, 0))
     for rect, text, _ in botones:
         draw_button(screen, rect, text, FONT)
+    # Overlay de brillo basado en porcentaje (50-150)
+    p = settings.get("brightness", 100)
+    diff = p - 100
+    if diff != 0:
+        overlay = pygame.Surface((screen_width, screen_high))
+        if diff < 0:
+            overlay.fill((0, 0, 0))
+            overlay.set_alpha(min(255, int(-diff * 2.55)))  # 50% -> ~127
+        else:
+            overlay.fill((255, 255, 255))
+            overlay.set_alpha(min(255, int(diff * 2.55)))   # 150% -> ~127
+        screen.blit(overlay, (0, 0))
     pygame.display.flip()
     clock.tick(60)
