@@ -313,11 +313,23 @@ def pasar_dia_manual(estado: Dict, eventos: Dict) -> str:
     evento_id, resultado_id, personaje = elegir_evento(eventos, estado)
     texto_evento = aplicar_resultado(estado, evento_id, resultado_id, personaje)
 
-    # Decaimiento natural al final del día (baja 1 sin ir por debajo de 0)
-    for n in estado.get("personajes", {}).keys():
-        pj = estado["personajes"][n]
-        pj["comida_bar"] = max(0, int(pj.get("comida_bar", 0)) - 1)
-        pj["agua_bar"] = max(0, int(pj.get("agua_bar", 0)) - 1)
+    #sistema para la caida de las barras de comida y sed
+    for n, pj in estado.get("personajes", {}).items():
+        if not pj.get("vivo"):
+            continue
+
+        # Inicializa contadores si no existen
+        pj.setdefault("dias_sin_consumir", 0)
+        pj.setdefault("intervalo_consumo", random.randint(1, 3))
+
+        pj["dias_sin_consumir"] += 1
+
+        # Solo pierde barras si pasó su intervalo
+        if pj["dias_sin_consumir"] >= pj["intervalo_consumo"]:
+            pj["comida_bar"] = max(0, int(pj.get("comida_bar", 0)) - 1)
+            pj["agua_bar"] = max(0, int(pj.get("agua_bar", 0)) - 1)
+            pj["dias_sin_consumir"] = 0
+            pj["intervalo_consumo"] = random.randint(1, 3)
 
     texto = [f"Día {estado['dia']}:", *texto_consumo]
     texto.extend(eventos_regreso)
