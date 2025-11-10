@@ -55,6 +55,16 @@ def total_medicina(estado: Dict) -> Dict[str, int]:
     except Exception:
         return {}
 
+def asegurar_min_medicina(estado: Dict, minimos: Dict[str, int] | None = None) -> None:
+    if minimos is None:
+        minimos = {"botiquin": 2, "vendas": 4, "pastilla": 4}
+    estado.setdefault("objetos", {})
+    estado["objetos"].setdefault("medicina", {})
+    for k, v in minimos.items():
+        actual = int(estado["objetos"]["medicina"].get(k, 0))
+        if actual < v:
+            estado["objetos"]["medicina"][k] = v
+
 def usar_medicina(estado: Dict, tipo: str, nombre: str) -> str:
     meds = total_medicina(estado)
     if meds.get(tipo, 0) <= 0:
@@ -81,8 +91,8 @@ def usar_medicina(estado: Dict, tipo: str, nombre: str) -> str:
         efecto = "Alivia enfermedad."
     elif tipo == "pastilla":
         pj["enfermo"] = False
-        pj["salud"] = min(100, pj["salud"] + 8)
-        efecto = "Reduce sintomas."
+        pj["salud"] = min(100, pj["salud"] + 5)
+        efecto = "Cura enfermedad y +5 de vida."
     elif tipo == "capsula":
         pj["salud"] = min(100, pj["salud"] + 10)
         efecto = "Recupera algo de salud."
@@ -178,7 +188,24 @@ def aplicar_resultado(estado: Dict, evento: str, resultado: str, personaje: str)
         agua = random.randint(1, 2)
         agregar_comida(estado, comida)
         agregar_agua(estado, agua)
-        desc.append(f"Hallaron comida x{comida} y agua x{agua}.")
+        # Medicina al explorar
+        estado.setdefault("objetos", {})
+        estado["objetos"].setdefault("medicina", {})
+        meds_text = []
+        v_add = random.randint(0, 2)
+        p_add = random.randint(0, 2)
+        b_add = 1 if random.random() < 0.25 else 0
+        if v_add:
+            estado["objetos"]["medicina"]["vendas"] = int(estado["objetos"]["medicina"].get("vendas", 0)) + v_add
+            meds_text.append(f"vendas x{v_add}")
+        if p_add:
+            estado["objetos"]["medicina"]["pastilla"] = int(estado["objetos"]["medicina"].get("pastilla", 0)) + p_add
+            meds_text.append(f"pastilla x{p_add}")
+        if b_add:
+            estado["objetos"]["medicina"]["botiquin"] = int(estado["objetos"]["medicina"].get("botiquin", 0)) + b_add
+            meds_text.append(f"botiquin x{b_add}")
+        extra = (" y medicinas: " + ", ".join(meds_text)) if meds_text else ""
+        desc.append(f"Hallaron comida x{comida} y agua x{agua}{extra}.")
     elif resultado in ("radiacion_enfermedad",):
         if personaje:
             estado["personajes"][personaje]["enfermo"] = True
@@ -272,6 +299,8 @@ def resolver_vueltas_de_exploracion(estado: Dict, eventos: Dict) -> List[str]:
                     tot = sum(pesos)
                     pesos = [p / tot for p in pesos] if tot > 0 else None
                     r = random.choices(opciones, weights=pesos, k=1)[0]
+                    if r in ("desaparece", "desaparece_temporal"):
+                        r = "nada"
                     m = aplicar_resultado(estado, eid, r, nombre)
                     mensajes.append(f"{nombre} regresa: {r}. {m}")
             pj["explorando"] = False
@@ -311,7 +340,16 @@ def pasar_dia_manual(estado: Dict, eventos: Dict) -> str:
 
     # Elegir y resolver evento del día
     evento_id, resultado_id, personaje = elegir_evento(eventos, estado)
-    texto_evento = aplicar_resultado(estado, evento_id, resultado_id, personaje)
+    # Ajustar frecuencia de eventos segun dia
+    mod_resultado = resultado_id
+    dia_act = int(estado.get("dia", 1))
+    if resultado_id == "muerte" and dia_act < 50:
+        mod_resultado = "herido"
+    if resultado_id in ("pierde_salud_moral", "pierde_moral") and dia_act < 25:
+        mod_resultado = "nada"
+    if resultado_id in ("desaparece", "desaparece_temporal"):
+        mod_resultado = "nada"
+    texto_evento = aplicar_resultado(estado, evento_id, mod_resultado, personaje)
 
     # Decaimiento natural al final del día (baja 1 sin ir por debajo de 0)
     for n in estado.get("personajes", {}).keys():
@@ -390,7 +428,7 @@ def pasar_dia(estado: Dict, eventos: Dict) -> str:
 def _draw_book_panel(screen: pygame.Surface, estado: Dict, fuente: pygame.font.Font, comida_icon: pygame.Surface, agua_icon: pygame.Surface, seleccionado: str | None):
     # Panel (libro) en esquina inferior derecha
     sw, sh = screen.get_size()
-    panel_w, panel_h = 360, 220
+    panel_w, panel_h = 380, 320
     x = sw - panel_w - 20
     y = sh - panel_h - 20
 
@@ -414,6 +452,7 @@ def _draw_book_panel(screen: pygame.Surface, estado: Dict, fuente: pygame.font.F
     face_rects = {}
     comida_btn = None
     agua_btn = None
+    meds_btns = {}
 
     for nombre, pj in estado.get("personajes", {}).items():
         # Cara (placeholder cuadrado) y borde si seleccionado
@@ -455,9 +494,39 @@ def _draw_book_panel(screen: pygame.Surface, estado: Dict, fuente: pygame.font.F
             pygame.draw.rect(screen, (80, 80, 80), agua_btn, 2)
             screen.blit(pygame.transform.smoothscale(agua_icon, (28, 28)), (agua_btn.x + 2, agua_btn.y + 2))
 
-        fila_y += 56
+        # Ajuste de altura de fila para que entren controles
+        # Agregar botones de medicinas por fila seleccionada
+        if nombre == seleccionado:
+            r_v = pygame.Rect(x + panel_w - 200, fila_y + 2, 32, 32)
+            pygame.draw.rect(screen, (230, 230, 230), r_v)
+            pygame.draw.rect(screen, (80, 80, 80), r_v, 2)
+            try:
+                screen.blit(pygame.transform.smoothscale(vendas_icon, (28, 28)), (r_v.x + 2, r_v.y + 2))
+            except Exception:
+                pass
+            meds_btns["vendas"] = r_v
 
-    return {"faces": face_rects, "btn_comida": comida_btn, "btn_agua": agua_btn}
+            r_p = pygame.Rect(x + panel_w - 160, fila_y + 2, 32, 32)
+            pygame.draw.rect(screen, (230, 230, 230), r_p)
+            pygame.draw.rect(screen, (80, 80, 80), r_p, 2)
+            try:
+                screen.blit(pygame.transform.smoothscale(pastilla_icon, (28, 28)), (r_p.x + 2, r_p.y + 2))
+            except Exception:
+                pass
+            meds_btns["pastilla"] = r_p
+
+            r_b = pygame.Rect(x + panel_w - 120, fila_y + 2, 32, 32)
+            pygame.draw.rect(screen, (230, 230, 230), r_b)
+            pygame.draw.rect(screen, (80, 80, 80), r_b, 2)
+            try:
+                screen.blit(pygame.transform.smoothscale(botiquin_icon, (28, 28)), (r_b.x + 2, r_b.y + 2))
+            except Exception:
+                pass
+            meds_btns["botiquin"] = r_b
+
+        fila_y += 68
+
+    return {"faces": face_rects, "btn_comida": comida_btn, "btn_agua": agua_btn, "btn_meds": meds_btns}
 
 
 def dibujar_ui(screen: pygame.Surface, estado: Dict, fuente: pygame.font.Font, mensaje: str, comida_icon: pygame.Surface, agua_icon: pygame.Surface, seleccionado):
@@ -497,8 +566,59 @@ def dibujar_ui(screen: pygame.Surface, estado: Dict, fuente: pygame.font.Font, m
 
     # Panel tipo libro en esquina inferior derecha
     ui_rects = _draw_book_panel(screen, estado, fuente, comida_icon, agua_icon, seleccionado)
+
+    # Boton de Exploracion centrado abajo
+    sw, sh = screen.get_size()
+    exp_w, exp_h = 200, 44
+    exp_rect = pygame.Rect((sw - exp_w) // 2, sh - exp_h - 18, exp_w, exp_h)
+    pygame.draw.rect(screen, (40, 110, 160), exp_rect)
+    pygame.draw.rect(screen, (20, 50, 80), exp_rect, 3)
+    exp_txt = fuente.render("Exploracion", True, (255, 255, 255))
+    screen.blit(exp_txt, (exp_rect.centerx - exp_txt.get_width() // 2, exp_rect.centery - exp_txt.get_height() // 2))
+    ui_rects["btn_explorar"] = exp_rect
+
     pygame.display.flip()
     return ui_rects
+def _draw_exploration_modal(screen: pygame.Surface, estado: Dict, fuente: pygame.font.Font):
+    sw, sh = screen.get_size()
+    overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 150))
+    screen.blit(overlay, (0, 0))
+
+    mw, mh = 520, 320
+    mx = (sw - mw) // 2
+    my = (sh - mh) // 2
+    pygame.draw.rect(screen, (235, 235, 235), (mx, my, mw, mh))
+    pygame.draw.rect(screen, (30, 30, 30), (mx, my, mw, mh), 4)
+    title = fuente.render("Elige quien explorar", True, (20, 20, 20))
+    screen.blit(title, (mx + (mw - title.get_width()) // 2, my + 16))
+
+    rects = {}
+    disabled = {}
+    names = list(estado.get("personajes", {}).keys())
+    cols = 2
+    bw, bh = 200, 60
+    gapx, gapy = 32, 28
+    start_x = mx + (mw - (cols * bw + (cols - 1) * gapx)) // 2
+    start_y = my + 70
+    for i, nombre in enumerate(names):
+        cx = i % cols
+        cy = i // cols
+        r = pygame.Rect(start_x + cx * (bw + gapx), start_y + cy * (bh + gapy), bw, bh)
+        pj = estado["personajes"][nombre]
+        unusable = (not pj.get("vivo")) or pj.get("herido") or pj.get("enfermo")
+        color = (180, 60, 60) if unusable else (60, 160, 80)
+        pygame.draw.rect(screen, color, r)
+        pygame.draw.rect(screen, (30, 30, 30), r, 3)
+        txt = fuente.render(nombre, True, (255, 255, 255))
+        screen.blit(txt, (r.centerx - txt.get_width() // 2, r.centery - txt.get_height() // 2))
+        rects[nombre] = r
+        disabled[nombre] = unusable
+
+    note = fuente.render("Heridos o enfermos no pueden explorar.", True, (20, 20, 20))
+    screen.blit(note, (mx + (mw - note.get_width()) // 2, my + mh - 30))
+    pygame.display.flip()
+    return {"rects": rects, "disabled": disabled}
 def main(estado: Dict, screen: pygame.Surface) -> Dict:
     global estado_juego
     estado_juego = estado
@@ -521,6 +641,16 @@ def main(estado: Dict, screen: pygame.Surface) -> Dict:
 
     comida_icon = _load_icon(os.path.join("imagenes_objs", "bizcochitos don satur.png"), 18)
     agua_icon = _load_icon(os.path.join("imagenes_objs", "agua.png"), 18)
+    # Iconos de medicinas
+    vendas_icon = _load_icon(os.path.join("imagenes_objs", "vendas.png"), 18)
+    pastilla_icon = _load_icon(os.path.join("imagenes_objs", "pastilla.png"), 18)
+    botiquin_icon = _load_icon(os.path.join("imagenes_objs", "botiquin.png"), 18)
+    # Exponer para panel de libro
+    globals()["vendas_icon"] = vendas_icon
+    globals()["pastilla_icon"] = pastilla_icon
+    globals()["botiquin_icon"] = botiquin_icon
+    # Asegurar mnimo de medicinas al iniciar supervivencia
+    asegurar_min_medicina(estado_juego, {"botiquin": 2, "vendas": 4, "pastilla": 4})
     # Mensaje inicial si no existe
     estado_juego.setdefault("dia", max(1, int(estado_juego.get("dia", 1))))
     mensaje = "Presiona Enter para avanzar el día."
@@ -528,6 +658,8 @@ def main(estado: Dict, screen: pygame.Surface) -> Dict:
     last_ui = None
     clock = pygame.time.Clock()
     done = False
+    show_explore_modal = False
+    last_modal = None
     while not done:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
@@ -537,21 +669,51 @@ def main(estado: Dict, screen: pygame.Surface) -> Dict:
                     done = True
                 elif ev.key == pygame.K_RETURN:
                     mensaje = pasar_dia_manual(estado_juego, eventos)
+                elif ev.key == pygame.K_e:
+                    show_explore_modal = True
             elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 mx, my = ev.pos
-                if last_ui and "faces" in last_ui:
+                # Modal de exploracion activo
+                if show_explore_modal and last_modal:
+                    for nombre, r in last_modal.get("rects", {}).items():
+                        if r.collidepoint(mx, my):
+                            if last_modal.get("disabled", {}).get(nombre, False):
+                                mensaje = f"{nombre} no puede explorar (herido o enfermo)."
+                            else:
+                                dias = random.randint(1, 3)
+                                mensaje = enviar_exploracion(estado_juego, nombre, dias)
+                                show_explore_modal = False
+                                last_modal = None
+                            break
+                # Seleccion de caras
+                elif last_ui and "faces" in last_ui:
                     for nombre, r in last_ui["faces"].items():
                         if r.collidepoint(mx, my):
                             seleccionado = nombre
                             mensaje = f"Seleccionado: {nombre}"
                             break
+                # Acciones de item/agua/comida
                 if seleccionado and last_ui:
                     btn_c = last_ui.get("btn_comida")
                     btn_a = last_ui.get("btn_agua")
-                    if btn_c and btn_c.collidepoint(mx, my):
+                    btn_meds = last_ui.get("btn_meds", {})
+                    clicked = False
+                    for tipo, r in btn_meds.items():
+                        if r.collidepoint(mx, my):
+                            mensaje = usar_medicina(estado_juego, tipo, seleccionado)
+                            clicked = True
+                            break
+                    if not clicked and btn_c and btn_c.collidepoint(mx, my):
                         mensaje = dar_comida(estado_juego, seleccionado)
-                    elif btn_a and btn_a.collidepoint(mx, my):
+                        clicked = True
+                    if not clicked and btn_a and btn_a.collidepoint(mx, my):
                         mensaje = dar_agua(estado_juego, seleccionado)
+                        clicked = True
+                # Abrir modal desde boton explorar
+                if last_ui and last_ui.get("btn_explorar") and last_ui["btn_explorar"].collidepoint(mx, my):
+                    show_explore_modal = True
         last_ui = dibujar_ui(screen, estado_juego, fuente, mensaje, comida_icon, agua_icon, seleccionado)
+        if show_explore_modal:
+            last_modal = _draw_exploration_modal(screen, estado_juego, fuente)
         clock.tick(60)
     return estado_juego
