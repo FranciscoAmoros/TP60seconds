@@ -37,9 +37,22 @@ collision_rects = []
 estado_juego = {}
 
 objects_quantity = {
-    "Easy": {"comida": 6, "medicina": 3, "agua": 10},
-    "Medium": {"comida": 5, "medicina": 1, "agua": 8},
-    "Hard": {"comida": 3, "medicina": 0, "agua": 6}
+    # Separar la medicina por tipo: vendas, botiquin, jarabe, pastilla
+    "Easy": {
+        "comida": 6,
+        "agua": 10,
+        "medicina": {"vendas": 2, "botiquin": 1, "jarabe": 2, "pastilla": 2}
+    },
+    "Medium": {
+        "comida": 5,
+        "agua": 8,
+        "medicina": {"vendas": 1, "botiquin": 0, "jarabe": 1, "pastilla": 1}
+    },
+    "Hard": {
+        "comida": 3,
+        "agua": 6,
+        "medicina": {"vendas": 0, "botiquin": 0, "jarabe": 0, "pastilla": 0}
+    }
 }
 
 def get_random_posible_position(tilemap):
@@ -107,21 +120,25 @@ def get_objects(estado_juego, tilemap):
             
         })
 
-    for _ in range(objects_quantity[estado_juego["dificultad"]]["medicina"]):
-
-        llave = random.choice(list(estado_juego["objetos"]["medicina"].keys()))
-        value = estado_juego["objetos"]["medicina"][llave]
-        image_path = os.path.join(OBJECTS, f"{llave}.png")
-        if not os.path.exists(image_path): continue
-
-        objects.append({
-            "type": "medicina",
-            "name": llave,
-            "value": value,
-            "image": pygame.transform.scale(pygame.image.load(image_path).convert_alpha(), (40, 40)),
-            "rect": pygame.Rect(get_random_posible_position(tilemap), (40, 40))
-        
-        })
+    # Medicina: spawnear por tipo segun dificultad
+    med_config = objects_quantity[estado_juego["dificultad"]].get("medicina", {})
+    for med_name, cantidad in med_config.items():
+        for _ in range(int(cantidad)):
+            # Tomar valor actual en el estado para este tipo
+            value = estado_juego.get("objetos", {}).get("medicina", {}).get(med_name, 0)
+            image_path = os.path.join(OBJECTS, f"{med_name}.png")
+            if not os.path.exists(image_path):
+                continue
+            pos = get_random_posible_position(tilemap)
+            if pos is None:
+                continue
+            objects.append({
+                "type": "medicina",
+                "name": med_name,
+                "value": value,
+                "image": pygame.transform.scale(pygame.image.load(image_path).convert_alpha(), (40, 40)),
+                "rect": pygame.Rect(pos, (40, 40))
+            })
 
     for _ in range(objects_quantity[estado_juego["dificultad"]]["agua"]):
         llave = "agua"
