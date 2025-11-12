@@ -113,6 +113,12 @@ def normalizar_barras_iniciales(estado: Dict) -> None:
             pj["agua_bar"] = 5
 def vivos_presentes(estado: Dict) -> List[str]:
     return [n for n, p in estado.get("personajes", {}).items() if p.get("vivo")]
+
+def todos_muertos(estado: Dict) -> bool:
+    try:
+        return all(not p.get("vivo") for p in estado.get("personajes", {}).values())
+    except Exception:
+        return False
 def cargar_eventos(ruta: str = "eventos.json") -> Dict:
     try:
         with open(ruta, "r", encoding="utf-8") as f:
@@ -123,6 +129,58 @@ def elegir_evento(eventos: Dict, estado: Dict) -> Tuple[str, str, str]:
     if not eventos:
         return ("ninguno", "nada", "")
     dia = int(estado.get("dia", 1))
+    # Fuerza un evento de recursos cada 10 días (10, 20, 30, ...)
+    if dia % 10 == 0:
+        resource_keys = ("recursos", "trae_recursos", "explora_recursos")
+        # Filtrar eventos válidos por día y que tengan resultado de recursos
+        candidatos_recursos = []
+        for eid, data in eventos.items():
+            try:
+                dia_min = int(data.get("dia_min", 1))
+            except Exception:
+                dia_min = 1
+            if dia < dia_min:
+                continue
+            res = data.get("resultados", {})
+            keys = list(res.keys())
+            clave_encontrada = None
+            for k in keys:
+                if k in resource_keys:
+                    clave_encontrada = k
+                    break
+            if clave_encontrada:
+                candidatos_recursos.append((eid, clave_encontrada))
+        if candidatos_recursos:
+            # Preferimos "exploracion", luego eventos con "Todos", luego cualquiera
+            preferido = None
+            for eid, clave in candidatos_recursos:
+                if eid == "exploracion":
+                    preferido = (eid, clave)
+                    break
+            if not preferido:
+                # Buscar uno con personaje "Todos"
+                for eid, clave in candidatos_recursos:
+                    personaje_cond = str(eventos[eid].get("personaje", "Todos"))
+                    if personaje_cond.startswith("Todos"):
+                        preferido = (eid, clave)
+                        break
+            if not preferido:
+                preferido = random.choice(candidatos_recursos)
+
+            evento_id, resultado = preferido
+            data = eventos[evento_id]
+            personaje_cond = str(data.get("personaje", "Todos"))
+            elegido = ""
+            if personaje_cond in ("Ted", "Dolores", "Timmy", "Mary Jane"):
+                if estado["personajes"].get(personaje_cond, {}).get("vivo"):
+                    elegido = personaje_cond
+            elif personaje_cond.startswith("Todos"):
+                vivos = vivos_presentes(estado)
+                elegido = random.choice(vivos) if vivos else ""
+            else:
+                vivos = vivos_presentes(estado)
+                elegido = random.choice(vivos) if vivos else ""
+            return (evento_id, resultado, elegido)
     candidatos = []
     for eid, data in eventos.items():
         dia_min = int(data.get("dia_min", 1))
@@ -136,26 +194,48 @@ def elegir_evento(eventos: Dict, estado: Dict) -> Tuple[str, str, str]:
     res = data.get("resultados", {})
     if not res:
         return (evento_id, "nada", "")
-    opciones = list(res.keys())
-    pesos = [float(res[k]) for k in opciones]
-    total = sum(pesos)
-    if total <= 0:
-        return (evento_id, random.choice(opciones), "")
-    pesos = [p / total for p in pesos]
-    resultado = random.choices(opciones, weights=pesos, k=1)[0]
-    # Si el evento menciona personaje, elegimos uno válido
+
+    # Elegimos el personaje primero para poder condicionar el resultado
     personaje_cond = str(data.get("personaje", "Todos"))
     elegido = ""
     if personaje_cond in ("Ted", "Dolores", "Timmy", "Mary Jane"):
-        if estado["personajes"].get(personaje_cond, {}).get("vivo"):
+        if estado.get("personajes", {}).get(personaje_cond, {}).get("vivo"):
             elegido = personaje_cond
     elif personaje_cond.startswith("Todos"):
         vivos = vivos_presentes(estado)
         elegido = random.choice(vivos) if vivos else ""
     else:
-        # Por defecto, cualquiera vivo
         vivos = vivos_presentes(estado)
         elegido = random.choice(vivos) if vivos else ""
+
+    # Construir pesos y aplicar reglas especiales (día y barras)
+    opciones = list(res.keys())
+    pesos = [float(res[k]) for k in opciones]
+
+    # Regla 1: "muerte" no antes del día 10
+    if dia < 10:
+        for i, op in enumerate(opciones):
+            if op == "muerte":
+                pesos[i] = 0.0
+
+    # Regla 2: si el personaje tiene >=2 en comida_bar y >=2 en agua_bar, no puede ocurrir "muerte"
+    if elegido:
+        pj = estado.get("personajes", {}).get(elegido, {})
+        if pj.get("comida_bar", 0) >= 2 and pj.get("agua_bar", 0) >= 2:
+            for i, op in enumerate(opciones):
+                if op == "muerte":
+                    pesos[i] = 0.0
+
+    total = sum(pesos)
+    if total <= 0:
+        # Si todos los pesos quedaron en cero, elegimos una opción no fatal si es posible
+        opciones_no_fatales = [op for op in opciones if op != "muerte"]
+        if opciones_no_fatales:
+            return (evento_id, random.choice(opciones_no_fatales), elegido)
+        return (evento_id, random.choice(opciones), elegido)
+
+    pesos = [p / total for p in pesos]
+    resultado = random.choices(opciones, weights=pesos, k=1)[0]
     return (evento_id, resultado, elegido)
 def aplicar_resultado(estado: Dict, evento: str, resultado: str, personaje: str) -> str:
     """Aplica efectos al estado y devuelve una descripción breve."""
@@ -179,6 +259,13 @@ def aplicar_resultado(estado: Dict, evento: str, resultado: str, personaje: str)
         agregar_comida(estado, comida)
         agregar_agua(estado, agua)
         desc.append(f"Hallaron comida x{comida} y agua x{agua}.")
+    elif resultado in ("intercambio_exitoso",):
+        # Trueque exitoso: entregar más recursos que un evento normal de recursos
+        comida = random.randint(3, 6)
+        agua = random.randint(2, 4)
+        agregar_comida(estado, comida)
+        agregar_agua(estado, agua)
+        desc.append(f"El trueque fue exitoso: llegó comida x{comida} y agua x{agua}.")
     elif resultado in ("radiacion_enfermedad",):
         if personaje:
             estado["personajes"][personaje]["enfermo"] = True
@@ -511,6 +598,20 @@ def dibujar_ui(screen: pygame.Surface, estado: Dict, fuente: pygame.font.Font, m
     ui_rects = _draw_book_panel(screen, estado, fuente, comida_icon, agua_icon, seleccionado)
     pygame.display.flip()
     return ui_rects
+def dibujar_derrota(screen: pygame.Surface, estado: Dict) -> None:
+    screen.fill((10, 10, 10))
+    sw, sh = screen.get_size()
+    titulo_font = pygame.font.SysFont("arial", 56)
+    sub_font = pygame.font.SysFont("arial", 28)
+    titulo = titulo_font.render("DERROTA", True, (200, 60, 60))
+    motivo = sub_font.render("Todos los personajes han muerto.", True, (220, 220, 220))
+    dias_txt = sub_font.render(f"Días sobrevividos: {int(estado.get('dia', 1))}", True, (200, 200, 200))
+    instr = sub_font.render("Esc: volver al menú", True, (160, 160, 160))
+    screen.blit(titulo, ((sw - titulo.get_width()) // 2, sh // 3))
+    screen.blit(motivo, ((sw - motivo.get_width()) // 2, sh // 3 + 70))
+    screen.blit(dias_txt, ((sw - dias_txt.get_width()) // 2, sh // 3 + 120))
+    screen.blit(instr, ((sw - instr.get_width()) // 2, sh // 3 + 170))
+    pygame.display.flip()
 def main(estado: Dict, screen: pygame.Surface) -> Dict:
     global estado_juego
     estado_juego = estado
@@ -541,6 +642,7 @@ def main(estado: Dict, screen: pygame.Surface) -> Dict:
     clock = pygame.time.Clock()
     done = False
     while not done:
+        all_dead = todos_muertos(estado_juego)
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 done = True
@@ -548,22 +650,31 @@ def main(estado: Dict, screen: pygame.Surface) -> Dict:
                 if ev.key == pygame.K_ESCAPE:
                     done = True
                 elif ev.key == pygame.K_RETURN:
-                    mensaje = pasar_dia_manual(estado_juego, eventos)
+                    if not all_dead:
+                        mensaje = pasar_dia_manual(estado_juego, eventos)
+                    else:
+                        # Bloquear avance cuando están todos muertos
+                        mensaje = "Todos han muerto. No puedes avanzar días."
             elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 mx, my = ev.pos
-                if last_ui and "faces" in last_ui:
+                if not all_dead and last_ui and "faces" in last_ui:
                     for nombre, r in last_ui["faces"].items():
                         if r.collidepoint(mx, my):
                             seleccionado = nombre
                             mensaje = f"Seleccionado: {nombre}"
                             break
-                if seleccionado and last_ui:
+                if not all_dead and seleccionado and last_ui:
                     btn_c = last_ui.get("btn_comida")
                     btn_a = last_ui.get("btn_agua")
                     if btn_c and btn_c.collidepoint(mx, my):
                         mensaje = dar_comida(estado_juego, seleccionado)
                     elif btn_a and btn_a.collidepoint(mx, my):
                         mensaje = dar_agua(estado_juego, seleccionado)
-        last_ui = dibujar_ui(screen, estado_juego, fuente, mensaje, comida_icon, agua_icon, seleccionado)
+        # Si todos muertos, mostrar pantalla de derrota y no actualizar UI interactiva
+        if todos_muertos(estado_juego):
+            dibujar_derrota(screen, estado_juego)
+            last_ui = None
+        else:
+            last_ui = dibujar_ui(screen, estado_juego, fuente, mensaje, comida_icon, agua_icon, seleccionado)
         clock.tick(60)
     return estado_juego
