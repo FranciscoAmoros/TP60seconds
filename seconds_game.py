@@ -275,9 +275,9 @@ def aplicar_resultado(estado: Dict, evento: str, resultado: str, personaje: str)
         agregar_agua(estado, agua)
         # Medicina adicional: 1-2 vendas, 1-2 pastillas, 1-2 jarabes
         meds = estado.setdefault("objetos", {}).setdefault("medicina", {})
-        v_cant = random.randint(1, 2)
-        p_cant = random.randint(1, 2)
-        j_cant = random.randint(1, 2)
+        v_cant = random.randint(0, 1)
+        p_cant = random.randint(0, 1)
+        j_cant = random.randint(0, 1)
         meds["vendas"] = int(meds.get("vendas", 0)) + v_cant
         meds["pastilla"] = int(meds.get("pastilla", 0)) + p_cant
         meds["jarabe"] = int(meds.get("jarabe", 0)) + j_cant
@@ -291,6 +291,8 @@ def aplicar_resultado(estado: Dict, evento: str, resultado: str, personaje: str)
         meds = estado.setdefault("objetos", {}).setdefault("medicina", {})
         b_cant = random.randint(1, 2)
         p_cant = random.randint(2, 3)
+        v_cant = random.randint(2, 4)
+        j_cant = random.randint(1, 2)
         meds["botiquin"] = int(meds.get("botiquin", 0)) + b_cant
         meds["pastilla"] = int(meds.get("pastilla", 0)) + p_cant
         desc.append(f"El trueque fue exitoso: comida x{comida}, agua x{agua}, botiquines x{b_cant}, pastillas x{p_cant}.")
@@ -519,107 +521,122 @@ def pasar_dia(estado: Dict, eventos: Dict) -> str:
         texto.append(texto_evento)
     return "\n".join([t for t in texto if t])
 def _draw_book_panel(screen: pygame.Surface, estado: Dict, fuente: pygame.font.Font, comida_icon: pygame.Surface, agua_icon: pygame.Surface, seleccionado: str | None):
-    # Panel (libro) en esquina inferior derecha
+    # Panel estilizado anclado abajo a la derecha (no tapa cabecera)
     sw, sh = screen.get_size()
-    panel_w, panel_h = 360, 220
+
+    # Tamaño y posición: grande pero sin cubrir la cabecera (arriba-izquierda)
+    panel_w = min(int(sw * 0.7), 900)
+    panel_h = min(int(sh * 0.6), 520)
     x = sw - panel_w - 20
     y = sh - panel_h - 20
 
-    # Fondo y borde del "libro"
-    bg = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
-    bg.fill((210, 190, 160, 240))
-    screen.blit(bg, (x, y))
-    pygame.draw.rect(screen, (80, 60, 40), (x, y, panel_w, panel_h), 3)
+    # Fondo del panel
+    pygame.draw.rect(screen, (236, 226, 210), (x, y, panel_w, panel_h), border_radius=16)
+    pygame.draw.rect(screen, (90, 70, 50), (x, y, panel_w, panel_h), 4, border_radius=16)
 
-    # Título opcional
-    titulo = fuente.render("Registro", True, (50, 40, 30))
-    screen.blit(titulo, (x + 12, y + 8))
+    # Título
+    titulo_font = pygame.font.SysFont("arial", 32)
+    titulo = titulo_font.render("Registro", True, (50, 40, 30))
+    screen.blit(titulo, (x + 20, y + 14))
 
-    # Listado de personajes
-    fila_y = y + 40
-    icon_size = 18
-    gap = 4
-    face = pygame.Surface((36, 36))
-    face.fill((120, 120, 120))
+    # Encabezados
+    header_font = pygame.font.SysFont("arial", 20)
+    headers = ["Personaje", "Salud", "Comida", "Agua", "Acciones"]
+    col_x = [x + 24, x + 200, x + 360, x + 460, x + panel_w - 250]
+    for i, h in enumerate(headers):
+        screen.blit(header_font.render(h, True, (60, 50, 40)), (col_x[i], y + 56))
 
+    # Separador
+    pygame.draw.line(screen, (140, 120, 100), (x + 18, y + 80), (x + panel_w - 18, y + 80), 2)
+
+    # Lista de personajes con información
     face_rects = {}
-    comida_btn = None
-    agua_btn = None
-    vendas_btn = None
-    jarabe_btn = None
-    pastilla_btn = None
-    botiquin_btn = None
+    comida_btn = agua_btn = vendas_btn = jarabe_btn = pastilla_btn = botiquin_btn = None
 
+    row_y = y + 92
+    row_h = 72
+    face_size = 48
     for nombre, pj in estado.get("personajes", {}).items():
-        # Cara (placeholder cuadrado) y borde si seleccionado
-        rect_face = pygame.Rect(x + 12, fila_y, face.get_width(), face.get_height())
-        screen.blit(face, rect_face)
+        # Fila de fondo al pasar/seleccionar
         if nombre == seleccionado:
-            pygame.draw.rect(screen, (20, 120, 220), rect_face, 3)
+            pygame.draw.rect(screen, (225, 215, 195), (x + 12, row_y - 6, panel_w - 24, row_h), border_radius=10)
+
+        # Cara placeholder
+        face = pygame.Surface((face_size, face_size))
+        face.fill((140, 140, 140))
+        rect_face = pygame.Rect(col_x[0], row_y - 2, face_size, face_size)
+        screen.blit(face, rect_face)
         face_rects[nombre] = rect_face
 
         # Nombre
-        nombre_txt = fuente.render(nombre, True, (30, 30, 30))
-        screen.blit(nombre_txt, (x + 12 + 44, fila_y))
+        screen.blit(fuente.render(nombre, True, (30, 30, 30)), (col_x[0] + face_size + 10, row_y + 10))
 
-        # Barras como filas de iconos (comida arriba, agua abajo) en base a contadores del PJ
+        # Salud (barra)
+        salud = max(0, min(100, int(pj.get("salud", 0))))
+        bar_w, bar_h = 140, 16
+        bar_x, bar_y = col_x[1], row_y + 16
+        pygame.draw.rect(screen, (200, 190, 180), (bar_x, bar_y, bar_w, bar_h), border_radius=6)
+        fill_w = int(bar_w * (salud / 100.0))
+        color = (40, 180, 80) if salud >= 60 else (220, 160, 40) if salud >= 30 else (200, 60, 60)
+        pygame.draw.rect(screen, color, (bar_x, bar_y, fill_w, bar_h), border_radius=6)
+        screen.blit(header_font.render(str(salud), True, (40, 40, 40)), (bar_x + bar_w + 8, bar_y - 2))
+
+        # Barras de iconos de comida/agua
+        icon_size = 18
+        gap = 4
         llenos_comida = max(0, min(5, int(pj.get("comida_bar", 0))))
         llenos_agua = max(0, min(5, int(pj.get("agua_bar", 0))))
-
-        # Fila comida (latas)
-        fila1_y = fila_y + 18
         for i in range(llenos_comida):
-            screen.blit(comida_icon, (x + 12 + 44 + i * (icon_size + gap), fila1_y))
-
-        # Fila agua (botellas)
-        fila2_y = fila1_y + icon_size + 2
+            screen.blit(comida_icon, (col_x[2] + i * (icon_size + gap), row_y + 2))
         for i in range(llenos_agua):
-            screen.blit(agua_icon, (x + 12 + 44 + i * (icon_size + gap), fila2_y))
+            screen.blit(agua_icon, (col_x[3] + i * (icon_size + gap), row_y + 2))
 
-        # Si este es el seleccionado, dibujar botones de acción
+        # Estados
+        estados = []
+        if pj.get("herido"): estados.append("Herido")
+        if pj.get("enfermo"): estados.append("Enfermo")
+        if int(estado.get("dia", 1)) <= pj.get("desaparece_hasta", 0): estados.append("Ausente")
+        if estados:
+            st_txt = header_font.render(", ".join(estados), True, (120, 60, 40))
+            screen.blit(st_txt, (col_x[1], row_y + 38))
+
+        # Acciones (si seleccionado)
         if nombre == seleccionado:
-            # Botón dar comida
-            comida_btn = pygame.Rect(x + panel_w - 100, fila_y + 2, 32, 32)
-            pygame.draw.rect(screen, (230, 230, 230), comida_btn)
-            pygame.draw.rect(screen, (80, 80, 80), comida_btn, 2)
-            screen.blit(pygame.transform.smoothscale(comida_icon, (28, 28)), (comida_btn.x + 2, comida_btn.y + 2))
+            # Botones
+            btn_y = row_y + 6
+            def btn(x0):
+                return pygame.Rect(x0, btn_y, 34, 34)
+            comida_btn = btn(col_x[4] + 0)
+            agua_btn = btn(col_x[4] + 42)
+            vendas_btn = btn(col_x[4] + 100)
+            jarabe_btn = btn(col_x[4] + 142)
+            pastilla_btn = btn(col_x[4] + 184)
+            botiquin_btn = btn(col_x[4] + 226)
 
-            # Botón dar agua
-            agua_btn = pygame.Rect(x + panel_w - 60, fila_y + 2, 32, 32)
-            pygame.draw.rect(screen, (230, 230, 230), agua_btn)
-            pygame.draw.rect(screen, (80, 80, 80), agua_btn, 2)
-            screen.blit(pygame.transform.smoothscale(agua_icon, (28, 28)), (agua_btn.x + 2, agua_btn.y + 2))
+            for rect, color in [
+                (comida_btn, (230, 230, 230)),
+                (agua_btn, (230, 230, 230)),
+                (vendas_btn, (240, 240, 240)),
+                (jarabe_btn, (240, 240, 240)),
+                (pastilla_btn, (240, 240, 240)),
+                (botiquin_btn, (240, 240, 240)),
+            ]:
+                pygame.draw.rect(screen, color, rect, border_radius=6)
+                pygame.draw.rect(screen, (80, 80, 80), rect, 2, border_radius=6)
 
-            # Fila de botones de medicina (Vendas, Jarabe, Pastilla, Botiquín)
-            meds_y = fila_y + 40
-            btn_size = 28
-            gap_btn = 6
-            # Vendas
-            vendas_btn = pygame.Rect(x + panel_w - 100, meds_y, btn_size, btn_size)
-            pygame.draw.rect(screen, (240, 240, 240), vendas_btn)
-            pygame.draw.rect(screen, (60, 60, 60), vendas_btn, 2)
+            # Iconos/Texto de botones
+            screen.blit(pygame.transform.smoothscale(comida_icon, (28, 28)), (comida_btn.x + 3, comida_btn.y + 3))
+            screen.blit(pygame.transform.smoothscale(agua_icon, (28, 28)), (agua_btn.x + 3, agua_btn.y + 3))
             v_txt = fuente.render("V", True, (20, 20, 20))
-            screen.blit(v_txt, (vendas_btn.x + (btn_size - v_txt.get_width())//2, vendas_btn.y + (btn_size - v_txt.get_height())//2))
-            # Jarabe
-            jarabe_btn = pygame.Rect(x + panel_w - 100 + (btn_size + gap_btn), meds_y, btn_size, btn_size)
-            pygame.draw.rect(screen, (240, 240, 240), jarabe_btn)
-            pygame.draw.rect(screen, (60, 60, 60), jarabe_btn, 2)
             j_txt = fuente.render("J", True, (20, 20, 20))
-            screen.blit(j_txt, (jarabe_btn.x + (btn_size - j_txt.get_width())//2, jarabe_btn.y + (btn_size - j_txt.get_height())//2))
-            # Pastilla
-            pastilla_btn = pygame.Rect(x + panel_w - 100 + 2*(btn_size + gap_btn), meds_y, btn_size, btn_size)
-            pygame.draw.rect(screen, (240, 240, 240), pastilla_btn)
-            pygame.draw.rect(screen, (60, 60, 60), pastilla_btn, 2)
             p_txt = fuente.render("P", True, (20, 20, 20))
-            screen.blit(p_txt, (pastilla_btn.x + (btn_size - p_txt.get_width())//2, pastilla_btn.y + (btn_size - p_txt.get_height())//2))
-            # Botiquín
-            botiquin_btn = pygame.Rect(x + panel_w - 100 + 3*(btn_size + gap_btn), meds_y, btn_size, btn_size)
-            pygame.draw.rect(screen, (240, 240, 240), botiquin_btn)
-            pygame.draw.rect(screen, (60, 60, 60), botiquin_btn, 2)
             b_txt = fuente.render("B", True, (20, 20, 20))
-            screen.blit(b_txt, (botiquin_btn.x + (btn_size - b_txt.get_width())//2, botiquin_btn.y + (btn_size - b_txt.get_height())//2))
+            screen.blit(v_txt, (vendas_btn.x + (34 - v_txt.get_width())//2, vendas_btn.y + (34 - v_txt.get_height())//2))
+            screen.blit(j_txt, (jarabe_btn.x + (34 - j_txt.get_width())//2, jarabe_btn.y + (34 - j_txt.get_height())//2))
+            screen.blit(p_txt, (pastilla_btn.x + (34 - p_txt.get_width())//2, pastilla_btn.y + (34 - p_txt.get_height())//2))
+            screen.blit(b_txt, (botiquin_btn.x + (34 - b_txt.get_width())//2, botiquin_btn.y + (34 - b_txt.get_height())//2))
 
-        fila_y += 56
+        row_y += row_h
 
     return {
         "faces": face_rects,
@@ -641,6 +658,14 @@ def dibujar_ui(screen: pygame.Surface, estado: Dict, fuente: pygame.font.Font, m
     comida = total_comida(estado)
     inv_txt = fuente.render(f"Agua: {agua}  |  Comida: {comida}", True, (200, 200, 200))
     screen.blit(inv_txt, (20, 60))
+    # Línea de stock de curaciones en cabecera
+    meds = estado.get("objetos", {}).get("medicina", {})
+    v = int(meds.get("vendas", 0))
+    j = int(meds.get("jarabe", 0))
+    p = int(meds.get("pastilla", 0))
+    b = int(meds.get("botiquin", 0))
+    meds_txt = fuente.render(f"Vendas: {v}  |  Jarabe: {j}  |  Pastillas: {p}  |  Botiquines: {b}", True, (200, 220, 200))
+    screen.blit(meds_txt, (20, 86))
     # Personajes
     y = 100
     for nombre, pj in estado.get("personajes", {}).items():
