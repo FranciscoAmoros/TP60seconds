@@ -68,24 +68,25 @@ def usar_medicina(estado: Dict, tipo: str, nombre: str) -> str:
     efecto = ""
     if tipo == "vendas":
         pj["herido"] = False
-        pj["salud"] = min(100, pj["salud"] + 15)
-        efecto = "Vendado y estabilizado."
+        pj["salud"] = min(100, pj.get("salud", 0) + 10)
+        efecto = "Vendado: +10 de salud."
     elif tipo == "botiquin":
         pj["herido"] = False
         pj["enfermo"] = False
-        pj["salud"] = min(100, pj["salud"] + 30)
-        efecto = "Tratamiento completo aplicado."
+        pj["salud"] = min(100, pj.get("salud", 0) + 30)
+        efecto = "Botiquín: +30 de salud y cura enfermedades/heridas."
     elif tipo == "jarabe":
         pj["enfermo"] = False
-        pj["salud"] = min(100, pj["salud"] + 10)
-        efecto = "Alivia enfermedad."
+        pj["salud"] = min(100, pj.get("salud", 0) + 10)
+        efecto = "Jarabe: cura enfermedad (+10 salud)."
     elif tipo == "pastilla":
         pj["enfermo"] = False
-        pj["salud"] = min(100, pj["salud"] + 8)
-        efecto = "Reduce sintomas."
+        pj["salud"] = min(100, pj.get("salud", 0) + 8)
+        efecto = "Pastilla: cura enfermedad (+8 salud)."
     elif tipo == "capsula":
-        pj["salud"] = min(100, pj["salud"] + 10)
-        efecto = "Recupera algo de salud."
+        pj["enfermo"] = False
+        pj["salud"] = min(100, pj.get("salud", 0) + 10)
+        efecto = "Cápsula: cura enfermedad (+10 salud)."
     else:
         return "Medicina desconocida."
 
@@ -119,6 +120,12 @@ def todos_muertos(estado: Dict) -> bool:
         return all(not p.get("vivo") for p in estado.get("personajes", {}).values())
     except Exception:
         return False
+
+def contar_supervivientes(estado: Dict) -> int:
+    try:
+        return sum(1 for p in estado.get("personajes", {}).values() if p.get("vivo"))
+    except Exception:
+        return 0
 def cargar_eventos(ruta: str = "eventos.json") -> Dict:
     try:
         with open(ruta, "r", encoding="utf-8") as f:
@@ -184,6 +191,9 @@ def elegir_evento(eventos: Dict, estado: Dict) -> Tuple[str, str, str]:
     candidatos = []
     for eid, data in eventos.items():
         dia_min = int(data.get("dia_min", 1))
+        # Ajuste: el evento "rescate" no puede salir antes del día 45
+        if eid == "rescate" and dia < 45:
+            continue
         if dia < dia_min:
             continue
         candidatos.append(eid)
@@ -209,8 +219,13 @@ def elegir_evento(eventos: Dict, estado: Dict) -> Tuple[str, str, str]:
         elegido = random.choice(vivos) if vivos else ""
 
     # Construir pesos y aplicar reglas especiales (día y barras)
-    opciones = list(res.keys())
-    pesos = [float(res[k]) for k in opciones]
+    # Si es el evento de rescate desde día 45+, forzamos 75% falla y 25% éxito
+    if evento_id == "rescate" and dia >= 45:
+        opciones = ["rescate_falla", "rescate_exitoso"]
+        pesos = [0.75, 0.25]
+    else:
+        opciones = list(res.keys())
+        pesos = [float(res[k]) for k in opciones]
 
     # Regla 1: "muerte" no antes del día 10
     if dia < 10:
@@ -258,14 +273,27 @@ def aplicar_resultado(estado: Dict, evento: str, resultado: str, personaje: str)
         agua = random.randint(1, 2)
         agregar_comida(estado, comida)
         agregar_agua(estado, agua)
-        desc.append(f"Hallaron comida x{comida} y agua x{agua}.")
+        # Medicina adicional: 1-2 vendas, 1-2 pastillas, 1-2 jarabes
+        meds = estado.setdefault("objetos", {}).setdefault("medicina", {})
+        v_cant = random.randint(1, 2)
+        p_cant = random.randint(1, 2)
+        j_cant = random.randint(1, 2)
+        meds["vendas"] = int(meds.get("vendas", 0)) + v_cant
+        meds["pastilla"] = int(meds.get("pastilla", 0)) + p_cant
+        meds["jarabe"] = int(meds.get("jarabe", 0)) + j_cant
+        desc.append(f"Hallaron comida x{comida}, agua x{agua}, vendas x{v_cant}, pastillas x{p_cant}, jarabes x{j_cant}.")
     elif resultado in ("intercambio_exitoso",):
-        # Trueque exitoso: entregar más recursos que un evento normal de recursos
+        # Trueque exitoso: más recursos y medicina específica
         comida = random.randint(3, 6)
         agua = random.randint(2, 4)
         agregar_comida(estado, comida)
         agregar_agua(estado, agua)
-        desc.append(f"El trueque fue exitoso: llegó comida x{comida} y agua x{agua}.")
+        meds = estado.setdefault("objetos", {}).setdefault("medicina", {})
+        b_cant = random.randint(1, 2)
+        p_cant = random.randint(2, 3)
+        meds["botiquin"] = int(meds.get("botiquin", 0)) + b_cant
+        meds["pastilla"] = int(meds.get("pastilla", 0)) + p_cant
+        desc.append(f"El trueque fue exitoso: comida x{comida}, agua x{agua}, botiquines x{b_cant}, pastillas x{p_cant}.")
     elif resultado in ("radiacion_enfermedad",):
         if personaje:
             estado["personajes"][personaje]["enfermo"] = True
@@ -399,6 +427,10 @@ def pasar_dia_manual(estado: Dict, eventos: Dict) -> str:
     # Elegir y resolver evento del día
     evento_id, resultado_id, personaje = elegir_evento(eventos, estado)
     texto_evento = aplicar_resultado(estado, evento_id, resultado_id, personaje)
+    # Si rescate exitoso, marcar victoria
+    if evento_id == "rescate" and resultado_id == "rescate_exitoso":
+        estado["victoria"] = True
+        estado["victoria_motivo"] = "Rescate exitoso"
 
     #sistema para la caida de las barras de comida y sed
     for n, pj in estado.get("personajes", {}).items():
@@ -513,6 +545,10 @@ def _draw_book_panel(screen: pygame.Surface, estado: Dict, fuente: pygame.font.F
     face_rects = {}
     comida_btn = None
     agua_btn = None
+    vendas_btn = None
+    jarabe_btn = None
+    pastilla_btn = None
+    botiquin_btn = None
 
     for nombre, pj in estado.get("personajes", {}).items():
         # Cara (placeholder cuadrado) y borde si seleccionado
@@ -554,9 +590,46 @@ def _draw_book_panel(screen: pygame.Surface, estado: Dict, fuente: pygame.font.F
             pygame.draw.rect(screen, (80, 80, 80), agua_btn, 2)
             screen.blit(pygame.transform.smoothscale(agua_icon, (28, 28)), (agua_btn.x + 2, agua_btn.y + 2))
 
+            # Fila de botones de medicina (Vendas, Jarabe, Pastilla, Botiquín)
+            meds_y = fila_y + 40
+            btn_size = 28
+            gap_btn = 6
+            # Vendas
+            vendas_btn = pygame.Rect(x + panel_w - 100, meds_y, btn_size, btn_size)
+            pygame.draw.rect(screen, (240, 240, 240), vendas_btn)
+            pygame.draw.rect(screen, (60, 60, 60), vendas_btn, 2)
+            v_txt = fuente.render("V", True, (20, 20, 20))
+            screen.blit(v_txt, (vendas_btn.x + (btn_size - v_txt.get_width())//2, vendas_btn.y + (btn_size - v_txt.get_height())//2))
+            # Jarabe
+            jarabe_btn = pygame.Rect(x + panel_w - 100 + (btn_size + gap_btn), meds_y, btn_size, btn_size)
+            pygame.draw.rect(screen, (240, 240, 240), jarabe_btn)
+            pygame.draw.rect(screen, (60, 60, 60), jarabe_btn, 2)
+            j_txt = fuente.render("J", True, (20, 20, 20))
+            screen.blit(j_txt, (jarabe_btn.x + (btn_size - j_txt.get_width())//2, jarabe_btn.y + (btn_size - j_txt.get_height())//2))
+            # Pastilla
+            pastilla_btn = pygame.Rect(x + panel_w - 100 + 2*(btn_size + gap_btn), meds_y, btn_size, btn_size)
+            pygame.draw.rect(screen, (240, 240, 240), pastilla_btn)
+            pygame.draw.rect(screen, (60, 60, 60), pastilla_btn, 2)
+            p_txt = fuente.render("P", True, (20, 20, 20))
+            screen.blit(p_txt, (pastilla_btn.x + (btn_size - p_txt.get_width())//2, pastilla_btn.y + (btn_size - p_txt.get_height())//2))
+            # Botiquín
+            botiquin_btn = pygame.Rect(x + panel_w - 100 + 3*(btn_size + gap_btn), meds_y, btn_size, btn_size)
+            pygame.draw.rect(screen, (240, 240, 240), botiquin_btn)
+            pygame.draw.rect(screen, (60, 60, 60), botiquin_btn, 2)
+            b_txt = fuente.render("B", True, (20, 20, 20))
+            screen.blit(b_txt, (botiquin_btn.x + (btn_size - b_txt.get_width())//2, botiquin_btn.y + (btn_size - b_txt.get_height())//2))
+
         fila_y += 56
 
-    return {"faces": face_rects, "btn_comida": comida_btn, "btn_agua": agua_btn}
+    return {
+        "faces": face_rects,
+        "btn_comida": comida_btn,
+        "btn_agua": agua_btn,
+        "btn_vendas": vendas_btn,
+        "btn_jarabe": jarabe_btn,
+        "btn_pastilla": pastilla_btn,
+        "btn_botiquin": botiquin_btn,
+    }
 
 
 def dibujar_ui(screen: pygame.Surface, estado: Dict, fuente: pygame.font.Font, mensaje: str, comida_icon: pygame.Surface, agua_icon: pygame.Surface, seleccionado):
@@ -598,6 +671,24 @@ def dibujar_ui(screen: pygame.Surface, estado: Dict, fuente: pygame.font.Font, m
     ui_rects = _draw_book_panel(screen, estado, fuente, comida_icon, agua_icon, seleccionado)
     pygame.display.flip()
     return ui_rects
+def dibujar_victoria(screen: pygame.Surface, estado: Dict) -> None:
+    screen.fill((15, 30, 15))
+    sw, sh = screen.get_size()
+    titulo_font = pygame.font.SysFont("arial", 56)
+    sub_font = pygame.font.SysFont("arial", 28)
+    titulo = titulo_font.render("VICTORIA", True, (100, 220, 120))
+    motivo = estado.get("victoria_motivo") or ("Llegaste al día 100")
+    motivo_txt = sub_font.render(motivo, True, (220, 240, 220))
+    vivos = contar_supervivientes(estado)
+    dias_txt = sub_font.render(f"Días sobrevividos: {int(estado.get('dia', 1))}", True, (210, 230, 210))
+    vivos_txt = sub_font.render(f"Supervivientes: {vivos}", True, (210, 230, 210))
+    instr = sub_font.render("Esc: volver al menú", True, (190, 210, 190))
+    screen.blit(titulo, ((sw - titulo.get_width()) // 2, sh // 3))
+    screen.blit(motivo_txt, ((sw - motivo_txt.get_width()) // 2, sh // 3 + 70))
+    screen.blit(dias_txt, ((sw - dias_txt.get_width()) // 2, sh // 3 + 120))
+    screen.blit(vivos_txt, ((sw - vivos_txt.get_width()) // 2, sh // 3 + 160))
+    screen.blit(instr, ((sw - instr.get_width()) // 2, sh // 3 + 210))
+    pygame.display.flip()
 def dibujar_derrota(screen: pygame.Surface, estado: Dict) -> None:
     screen.fill((10, 10, 10))
     sw, sh = screen.get_size()
@@ -643,6 +734,10 @@ def main(estado: Dict, screen: pygame.Surface) -> Dict:
     done = False
     while not done:
         all_dead = todos_muertos(estado_juego)
+        won = bool(estado_juego.get("victoria")) or int(estado_juego.get("dia", 1)) >= 100
+        if int(estado_juego.get("dia", 1)) >= 100 and not estado_juego.get("victoria"):
+            estado_juego["victoria"] = True
+            estado_juego["victoria_motivo"] = "Sobreviviste hasta el día 100"
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 done = True
@@ -650,29 +745,47 @@ def main(estado: Dict, screen: pygame.Surface) -> Dict:
                 if ev.key == pygame.K_ESCAPE:
                     done = True
                 elif ev.key == pygame.K_RETURN:
-                    if not all_dead:
+                    if not all_dead and not won:
                         mensaje = pasar_dia_manual(estado_juego, eventos)
                     else:
-                        # Bloquear avance cuando están todos muertos
-                        mensaje = "Todos han muerto. No puedes avanzar días."
+                        # Bloquear avance cuando ya terminó (derrota o victoria)
+                        if all_dead:
+                            mensaje = "Todos han muerto. No puedes avanzar días."
+                        else:
+                            mensaje = "Has ganado. No puedes avanzar días."
             elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
                 mx, my = ev.pos
-                if not all_dead and last_ui and "faces" in last_ui:
+                if not all_dead and not won and last_ui and "faces" in last_ui:
                     for nombre, r in last_ui["faces"].items():
                         if r.collidepoint(mx, my):
                             seleccionado = nombre
                             mensaje = f"Seleccionado: {nombre}"
                             break
-                if not all_dead and seleccionado and last_ui:
+                if not all_dead and not won and seleccionado and last_ui:
                     btn_c = last_ui.get("btn_comida")
                     btn_a = last_ui.get("btn_agua")
+                    btn_v = last_ui.get("btn_vendas")
+                    btn_j = last_ui.get("btn_jarabe")
+                    btn_p = last_ui.get("btn_pastilla")
+                    btn_b = last_ui.get("btn_botiquin")
                     if btn_c and btn_c.collidepoint(mx, my):
                         mensaje = dar_comida(estado_juego, seleccionado)
                     elif btn_a and btn_a.collidepoint(mx, my):
                         mensaje = dar_agua(estado_juego, seleccionado)
-        # Si todos muertos, mostrar pantalla de derrota y no actualizar UI interactiva
-        if todos_muertos(estado_juego):
+                    elif btn_v and btn_v.collidepoint(mx, my):
+                        mensaje = usar_medicina(estado_juego, "vendas", seleccionado)
+                    elif btn_j and btn_j.collidepoint(mx, my):
+                        mensaje = usar_medicina(estado_juego, "jarabe", seleccionado)
+                    elif btn_p and btn_p.collidepoint(mx, my):
+                        mensaje = usar_medicina(estado_juego, "pastilla", seleccionado)
+                    elif btn_b and btn_b.collidepoint(mx, my):
+                        mensaje = usar_medicina(estado_juego, "botiquin", seleccionado)
+        # Mostrar fin de juego si corresponde
+        if all_dead:
             dibujar_derrota(screen, estado_juego)
+            last_ui = None
+        elif won:
+            dibujar_victoria(screen, estado_juego)
             last_ui = None
         else:
             last_ui = dibujar_ui(screen, estado_juego, fuente, mensaje, comida_icon, agua_icon, seleccionado)
