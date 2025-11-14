@@ -1,5 +1,5 @@
 {
-    "display_mode": "windowed",
-    "resolution_index": 0,
+    "display_mode": "fullscreen",
+    "resolution_index": 1,
     "brightness": 50
 }
